@@ -91,8 +91,8 @@ int set_keyboard_backlight_level(int val)
 int get_keyboard_backlight_level()
 {
 	int rc;
-	char buf[128];
-	size_t buflen=sizeof(buf);
+	char buf[sizeof(int)];
+	size_t buflen=sizeof(int);
 
 	rc=sysctlbyname(KB_CUR_LEVEL,
 			buf, &buflen, NULL,0);
@@ -133,13 +133,42 @@ int set_video_level(int val)
 			NULL, NULL, buf, sizeof(int));
 	if (rc<0) {
 		fprintf(stderr,"sysctl %s : %s\n",
-			VIDEO_CUR_LEVEL,strerror(errno));
+			key,strerror(errno));
 		return -1;
 	}
 
 	return 0;
 }
 
+int set_acpi_video_level()
+{
+	char *key;
+	int rc;
+	char buf[sizeof(int)];
+	size_t buflen=sizeof(int);
+
+	key = (ac_powered)?VIDEO_FUL_LEVEL:VIDEO_ECO_LEVEL;
+
+	rc=sysctlbyname(key,
+			buf, &buflen, NULL, 0);
+	if (rc<0) {
+		fprintf(stderr,"sysctl %s : %s\n",
+			key,strerror(errno));
+		return -1;
+	}
+
+	rc=sysctlbyname(VIDEO_CUR_LEVEL,
+			NULL, NULL, buf, sizeof(int));
+	if (rc<0) {
+		fprintf(stderr,"sysctl %s : %s\n",
+			VIDEO_CUR_LEVEL,strerror(errno));
+		return -1;
+	}
+
+	printf("set video brightness: %d\n",*((int*)buf));
+
+	return 0;
+}
 
 int get_video_up_level()
 {
@@ -181,8 +210,8 @@ int get_video_current_level()
 {
 	int rc;
 	char *key;
-	char buf[128];
-	size_t buflen=sizeof(buf);
+	char buf[sizeof(int)];
+	size_t buflen=sizeof(int);
 
 	rc=sysctlbyname(VIDEO_CUR_LEVEL,
 			buf, &buflen, NULL,0);
@@ -272,6 +301,11 @@ int main(int argc, char *argv[])
 			{
 				d=get_video_down_level();
 				set_video_level(d);
+			}
+			if (strcmp(argv[2],"acpi")==0||
+			    strcmp(argv[2],"a")==0)
+			{
+				set_acpi_video_level();
 			}
 		}
 		if (strcmp(argv[1],"kb")==0||

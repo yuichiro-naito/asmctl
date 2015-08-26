@@ -1,3 +1,6 @@
-- handle acpi power state change
+TODO
 - save backlight status on change
 - restore backlight status on boot
+
+DONE
+* handle acpi power state change
