@@ -5,6 +5,8 @@
 #include <string.h>
 #include <errno.h>
 
+#define KB_CUR_LEVEL "dev.asmc.0.light.control"
+
 #define VIDEO_LEVELS "hw.acpi.video.lcd0.levels"
 #define VIDEO_ECO_LEVEL "hw.acpi.video.lcd0.economy"
 #define VIDEO_FUL_LEVEL "hw.acpi.video.lcd0.fullpower"
@@ -12,12 +14,56 @@
 
 #define AC_POWER "hw.acpi.acline"
 
+int kb_current_level;
+
 int num_of_video_levels=0;
 int *video_levels=NULL;
 int video_current_level;
 
 /* set 1 if AC powered else 0 */
 int ac_powered=0;
+
+int set_keyboard_backlight_level(int val)
+{
+	char *key;
+	int rc;
+	char buf[sizeof(int)];
+	size_t buflen=sizeof(int);
+
+	memcpy(buf,&val,sizeof(int));
+
+	rc=sysctlbyname(KB_CUR_LEVEL,
+			NULL, NULL, buf, sizeof(int));
+	if (rc<0) {
+		fprintf(stderr,"sysctl %s : %s\n",
+			KB_CUR_LEVEL,strerror(errno));
+		return -1;
+	}
+
+	printf("set keyboard backlight brightness: %d\n",val);
+
+	return 0;
+}
+
+int get_keyboard_backlight_level()
+{
+	int rc;
+	char buf[128];
+	size_t buflen=sizeof(buf);
+
+	rc=sysctlbyname(KB_CUR_LEVEL,
+			buf, &buflen, NULL,0);
+	if (rc<0) {
+		fprintf(stderr,"sysctl %s : %s\n",
+			KB_CUR_LEVEL,strerror(errno));
+		return -1;
+	}
+
+	rc=*((int*)buf);
+	kb_current_level=rc;
+
+	return rc;
+}
 
 int set_video_level(int val)
 {
@@ -38,10 +84,7 @@ int set_video_level(int val)
 
 	printf("set video brightness: %d\n",val);
 
-	if (ac_powered)
-		key = VIDEO_FUL_LEVEL;
-	else
-		key = VIDEO_ECO_LEVEL;
+	key = (ac_powered)?VIDEO_FUL_LEVEL:VIDEO_ECO_LEVEL;
 
 	rc=sysctlbyname(key,
 			NULL, NULL, buf, sizeof(int));
@@ -142,7 +185,7 @@ int_compare(const void *p1, const void *p2)
 
 int get_video_levels()
 {
-	int i, rc, *v,n;
+	int i,j, rc, *v,n;
 	char buf[128];
 	size_t buflen=sizeof(buf);
 
@@ -161,10 +204,16 @@ int get_video_levels()
 		return -1;
 	}
 	memcpy(v,buf,buflen);
-	num_of_video_levels=n=buflen/sizeof(int);
-	video_levels=v;
+	n=buflen/sizeof(int);
 
+	/* sort and uniq levels */
 	qsort(v,n,sizeof(int),int_compare);
+	for (i=1,j=0;i<n;i++)
+		if (v[i]!=v[j])
+			v[++j]=v[i];
+
+	num_of_video_levels=j+1;
+	video_levels=v;
 
 	return 0;
 }
@@ -179,17 +228,48 @@ int main(int argc, char *argv[])
 	if (get_video_current_level()<0) return 1;
 	if (get_video_levels()<0) return 1;
 
-	if (argc>1) {
-		if (strcmp(argv[1],"up")==0)
+	if (argc>2) {
+		if (strcmp(argv[1],"video")==0||
+		    strcmp(argv[1],"lcd")==0)
 		{
-			d=get_video_up_level();
-			set_video_level(d);
+			if (strcmp(argv[2],"up")==0||
+			    strcmp(argv[2],"u")==0)
+			{
+				d=get_video_up_level();
+				set_video_level(d);
+			}
+			if (strcmp(argv[2],"down")==0||
+			    strcmp(argv[2],"d")==0)
+			{
+				d=get_video_down_level();
+				set_video_level(d);
+			}
 		}
-		if (strcmp(argv[1],"down")==0)
+		if (strcmp(argv[1],"kb")==0||
+		    strcmp(argv[1],"kbd")==0||
+		    strcmp(argv[1],"keyboard")==0||
+		    strcmp(argv[1],"key")==0)
 		{
-			d=get_video_down_level();
-			set_video_level(d);
+			d=get_keyboard_backlight_level();
+			if (d<0) return 1;
+			if (strcmp(argv[2],"up")==0||
+			    strcmp(argv[2],"u")==0)
+			{
+				d+=10;
+				if (d>100) d=100;
+			}
+			if (strcmp(argv[2],"down")==0||
+			    strcmp(argv[2],"d")==0)
+			{
+				d-=10;
+				if (d<0) d=0;
+			}
+			set_keyboard_backlight_level(d);
 		}
+	} else {
+		printf("usage: %s [video|key] [up|down]\n",argv[0]);
+		printf("\nChange video or keyboard backlight more or less bright.\n");
 	}
+
 	return 0;
 }
