@@ -216,46 +216,32 @@ int get_ac_powered()
 	return 0;
 }
 
-
-static int
-int_compare(const void *p1, const void *p2)
-{
-	int left = *(const int *)p1;
-	int right = *(const int *)p2;
-
-	return ((left > right) - (left < right));
-}
-
 int get_video_levels()
 {
 	int i,j, rc, *v,n;
-	char buf[128];
+	int buf[32];
 	size_t buflen=sizeof(buf);
 
 	rc=sysctlbyname(VIDEO_LEVELS,
-			buf, &buflen, NULL,0);
+			(void*)buf, &buflen, NULL,0);
 	if (rc<0) {
 		fprintf(stderr,"sysctl %s : %s\n",
 			VIDEO_LEVELS,strerror(errno));
 		return -1;
 	}
 
-	v=(int*)realloc(video_levels,buflen);
+	n=buflen/sizeof(int);
+	/* ignore fist two elements */
+	n-=2;
+	v=(int*)realloc(video_levels,n*sizeof(int));
 	if (v==NULL)
 	{
 		fprintf(stderr,"failed to allocate %ld bytes memory\n",buflen);
 		return -1;
 	}
-	memcpy(v,buf,buflen);
-	n=buflen/sizeof(int);
+	memcpy(v,&buf[2],n*sizeof(int));
 
-	/* sort and uniq levels */
-	qsort(v,n,sizeof(int),int_compare);
-	for (i=1,j=0;i<n;i++)
-		if (v[i]!=v[j])
-			v[++j]=v[i];
-
-	num_of_video_levels=j+1;
+	num_of_video_levels=n;
 	video_levels=v;
 
 	return 0;
