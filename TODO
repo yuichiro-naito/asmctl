@@ -1,0 +1,3 @@
+- handle acpi power state change
+- save backlight status on change
+- restore backlight status on boot
