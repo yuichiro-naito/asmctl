@@ -1,5 +1,6 @@
 TODO
 - restore backlight status on boot
+- write documents.
 
 DONE
 * handle acpi power state change
