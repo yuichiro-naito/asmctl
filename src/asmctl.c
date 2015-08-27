@@ -60,11 +60,51 @@ int num_of_video_levels=0;
 /* Array of video level values */
 int *video_levels=NULL;
 
-/* Video backlight current level (one of video_level)*/
+/* Video backlight current level (one of video_levels)*/
 int video_current_level;
+
+/* Video backlight economy level (one of video_levels)*/
+int video_economy_level;
+
+/* Video backlight fullpower level (one of video_levels)*/
+int video_fullpower_level;
 
 /* set 1 if AC powered else 0 */
 int ac_powered=0;
+
+/* file name to save state */
+static char *conf_filename="/usr/local/etc/asmctl.conf";
+
+/**
+   Store backlight levels to file.
+   Write in sysctl.conf(5) format to restore by sysctl(1)
+ */
+int store_conf_file()
+{
+	int rc;
+	FILE *fp;
+
+	fp=fopen(conf_filename,"w");
+	if (fp==NULL)
+	{
+		fprintf(stderr,"can not write %s\n",conf_filename);
+		return -1;
+	}
+	fprintf(fp,
+		"# DO NOT EDIT MANUALLY!\n"
+		"# This file is written by asmctl.\n");
+	fprintf(fp,"%s=%d\n",VIDEO_ECO_LEVEL,video_economy_level);
+	fprintf(fp,"%s=%d\n",VIDEO_FUL_LEVEL,video_fullpower_level);
+	fprintf(fp,"%s=%d\n",VIDEO_CUR_LEVEL,video_current_level);
+	fprintf(fp,"%s=%d\n",KB_CUR_LEVEL,kb_current_level);
+	rc=fclose(fp);
+	if (rc<0) {
+		fprintf(stderr,"can not write %s\n",conf_filename);
+		return -1;
+	}
+
+	return 0;
+}
 
 int set_keyboard_backlight_level(int val)
 {
@@ -85,7 +125,9 @@ int set_keyboard_backlight_level(int val)
 
 	printf("set keyboard backlight brightness: %d\n",val);
 
-	return 0;
+	kb_current_level=val;
+
+	return store_conf_file();
 }
 
 int get_keyboard_backlight_level()
@@ -137,7 +179,9 @@ int set_video_level(int val)
 		return -1;
 	}
 
-	return 0;
+	video_current_level=val;
+
+	return store_conf_file();
 }
 
 int set_acpi_video_level()
@@ -146,16 +190,10 @@ int set_acpi_video_level()
 	int rc;
 	char buf[sizeof(int)];
 	size_t buflen=sizeof(int);
+	int *ptr;
 
-	key = (ac_powered)?VIDEO_FUL_LEVEL:VIDEO_ECO_LEVEL;
-
-	rc=sysctlbyname(key,
-			buf, &buflen, NULL, 0);
-	if (rc<0) {
-		fprintf(stderr,"sysctl %s : %s\n",
-			key,strerror(errno));
-		return -1;
-	}
+	ptr = (ac_powered)?&video_fullpower_level:&video_economy_level;
+	memcpy(buf,ptr,sizeof(int));
 
 	rc=sysctlbyname(VIDEO_CUR_LEVEL,
 			NULL, NULL, buf, sizeof(int));
@@ -167,7 +205,9 @@ int set_acpi_video_level()
 
 	printf("set video brightness: %d\n",*((int*)buf));
 
-	return 0;
+	video_current_level=*((int*)buf);
+
+	return store_conf_file();
 }
 
 int get_video_up_level()
@@ -206,23 +246,37 @@ int get_video_down_level()
 	return -1;
 }
 
-int get_video_current_level()
+int get_video_level()
 {
 	int rc;
 	char *key;
 	char buf[sizeof(int)];
 	size_t buflen=sizeof(int);
+	int i;
+	const static char *keys[]=
+	{
+		VIDEO_CUR_LEVEL,
+		VIDEO_ECO_LEVEL,
+		VIDEO_FUL_LEVEL
+	};
+	static int *vptr[]=
+	{
+		&video_current_level,
+		&video_economy_level,
+		&video_fullpower_level
+	};
 
-	rc=sysctlbyname(VIDEO_CUR_LEVEL,
-			buf, &buflen, NULL,0);
-	if (rc<0) {
-		fprintf(stderr,"sysctl %s :%s\n",
-			VIDEO_CUR_LEVEL,strerror(errno));
-		return -1;
+	for (i=0;i<sizeof(keys)/sizeof(char*);i++) {
+		rc=sysctlbyname(keys[i],
+				buf, &buflen, NULL,0);
+		if (rc<0) {
+			fprintf(stderr,"sysctl %s :%s\n",
+				keys[i],strerror(errno));
+			return -1;
+		}
+
+		memcpy(vptr[i],buf,sizeof(int));
 	}
-
-	video_current_level = *((int*)buf);
-
 	return 0;
 }
 
@@ -283,7 +337,7 @@ int main(int argc, char *argv[])
 
 	/* initialize */
 	if (get_ac_powered()<0) return 1;
-	if (get_video_current_level()<0) return 1;
+	if (get_video_level()<0) return 1;
 	if (get_video_levels()<0) return 1;
 
 	if (argc>2) {
