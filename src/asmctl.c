@@ -181,6 +181,11 @@ int set_video_level(int val)
 
 	video_current_level=val;
 
+	if (ac_powered)
+		video_fullpower_level=val;
+	else
+		video_economy_level=val;
+
 	return store_conf_file();
 }
 
