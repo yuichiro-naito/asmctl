@@ -23,7 +23,7 @@ $(PROG): $(OBJS)
 	$(CC) $(INCS) $(DEFS) -c -o $@ $<
 
 $(CONF): $(CONF).s
-	$(SED) -e "s|%%EXEC_PREFIX%%|$(bindir)|" < $(CONF).s > $(CONF)
+	$(SED) -e "s|%%BINDIR%%|$(bindir)|" < $(CONF).s > $(CONF)
 
 clean:
 	rm -f $(OBJS) $(PROG) devd/asmctl.conf
