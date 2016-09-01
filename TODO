@@ -1,5 +1,7 @@
 TODO
+- make configure script to change PREFIX
 - restore backlight status on boot
+   -> do 'sysctl -f /usr/local/etc/asmc.conf' at boot
 - write documents.
 
 DONE
