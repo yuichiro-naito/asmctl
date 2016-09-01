@@ -42,6 +42,10 @@
 #include <string.h>
 #include <errno.h>
 
+#ifdef HAVE_CONFIG_H
+#  include "config.h"
+#endif
+
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
 #define VIDEO_LEVELS "hw.acpi.video.lcd0.levels"
@@ -73,7 +77,7 @@ int video_fullpower_level;
 int ac_powered=0;
 
 /* file name to save state */
-static char *conf_filename="/usr/local/etc/asmctl.conf";
+static char *conf_filename=PREFIX"/var/asmctl.conf";
 
 /**
    Store backlight levels to file.

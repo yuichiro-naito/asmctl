@@ -1,0 +1,29 @@
+prefix = @prefix@
+exec_prefix = @exec_prefix@
+bindir = @bindir@
+localstatedir = @localstatedir@
+sysconfdir = @sysconfdir@
+CC = @CC@
+DEFS = -O @DEFS@
+LIBS = @LIBS@
+INCS = -I.
+
+SRCS = src/asmctl.c
+OBJS = $(SRCS:.c=.o)
+PROG = asmctl
+
+all: $(PROG)
+
+$(PROG): $(OBJS)
+	$(CC) -o $@ $(OBJS) $(LIBS)
+
+.c.o:
+	$(CC) $(INCS) $(DEFS) -c -o $@ $<
+
+clean:
+	rm -f $(OBJS) $(PROG)
+
+install: $(PROG)
+	install -m 4755 $(PROG) $(bindir)
+	mkdir -p $(sysconfdir)/devd
+	install -m 644 devd/asmctl.conf $(sysconfdir)/devd
