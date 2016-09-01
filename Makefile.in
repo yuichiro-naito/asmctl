@@ -12,7 +12,7 @@ SRCS = src/asmctl.c
 OBJS = $(SRCS:.c=.o)
 PROG = asmctl
 
-all: $(PROG)
+all: $(PROG) devd/asmctl.conf
 
 $(PROG): $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LIBS)
@@ -20,8 +20,11 @@ $(PROG): $(OBJS)
 .c.o:
 	$(CC) $(INCS) $(DEFS) -c -o $@ $<
 
+devd/asmctl.conf: devd/asmctl.conf.s
+	sed -e "s|%%EXEC_PREFIX%%|$(bindir)|" < devd/asmctl.conf.s > $@ 
+
 clean:
-	rm -f $(OBJS) $(PROG)
+	rm -f $(OBJS) $(PROG) devd/asmctl.conf
 
 install: $(PROG)
 	install -m 4755 $(PROG) $(bindir)
