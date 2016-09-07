@@ -112,10 +112,8 @@ int store_conf_file()
 
 int set_keyboard_backlight_level(int val)
 {
-	char *key;
 	int rc;
 	char buf[sizeof(int)];
-	size_t buflen=sizeof(int);
 
 	memcpy(buf,&val,sizeof(int));
 
@@ -159,7 +157,6 @@ int set_video_level(int val)
 	char *key;
 	int rc;
 	char buf[sizeof(int)];
-	size_t buflen=sizeof(int);
 
 	memcpy(buf,&val,sizeof(int));
 
@@ -195,10 +192,8 @@ int set_video_level(int val)
 
 int set_acpi_video_level()
 {
-	char *key;
 	int rc;
 	char buf[sizeof(int)];
-	size_t buflen=sizeof(int);
 	int *ptr;
 
 	ptr = (ac_powered)?&video_fullpower_level:&video_economy_level;
@@ -258,7 +253,6 @@ int get_video_down_level()
 int get_video_level()
 {
 	int rc;
-	char *key;
 	char buf[sizeof(int)];
 	size_t buflen=sizeof(int);
 	int i;
@@ -310,7 +304,7 @@ int get_ac_powered()
 
 int get_video_levels()
 {
-	int i,j, rc, *v,n;
+	int rc, *v, n;
 	int buf[32];
 	size_t buflen=sizeof(buf);
 
