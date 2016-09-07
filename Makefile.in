@@ -30,6 +30,5 @@ clean:
 	rm -f $(OBJS) $(PROG) devd/asmctl.conf
 
 install: $(PROG) $(CONF)
-	$(INSTALL) -m 4755 $(PROG) $(bindir)
-	mkdir -p $(sysconfdir)/devd
-	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
+	$(INSTALL) -d -m 4755 $(PROG) $(bindir)
+	$(INSTALL) -d -m 644 $(CONF) $(sysconfdir)/devd
