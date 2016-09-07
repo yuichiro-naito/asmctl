@@ -3,6 +3,7 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 localstatedir = @localstatedir@
 sysconfdir = @sysconfdir@
+INSTALL = @INSTALL@
 SED = @SED@
 CC = @CC@
 DEFS = -O @DEFS@
@@ -29,6 +30,6 @@ clean:
 	rm -f $(OBJS) $(PROG) devd/asmctl.conf
 
 install: $(PROG) $(CONF)
-	install -m 4755 $(PROG) $(bindir)
+	$(INSTALL) -m 4755 $(PROG) $(bindir)
 	mkdir -p $(sysconfdir)/devd
-	install -m 644 $(CONF) $(sysconfdir)/devd
+	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
