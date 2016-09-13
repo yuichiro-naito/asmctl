@@ -23,12 +23,14 @@ $(PROG): $(OBJS)
 .c.o:
 	$(CC) $(INCS) $(DEFS) -c -o $@ $<
 
+$(CONF): $(CONF).s
+	$(SED) -e "s|%%BINDIR%%|$(bindir)|" < $(CONF).s > $(CONF)
+
 clean:
 	rm -f $(OBJS) $(PROG) devd/asmctl.conf
 
 install: $(PROG) $(CONF)
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -m 4755 $(PROG) $(bindir)
-	$(SED) -i .s -e "s|%%BINDIR%%|$(bindir)|" $(CONF)
 	$(INSTALL) -d -m 644 $(sysconfdir)/devd
 	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
