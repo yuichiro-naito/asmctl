@@ -6,7 +6,8 @@ AC_INIT([asmctl], [1.0], [naito.yuichiro@gmail.com])
 AC_CONFIG_SRCDIR([src/asmctl.c])
 AC_CONFIG_HEADERS([config.h])
 
-AC_DEFINE_UNQUOTED(PREFIX, ["$prefix"])
+test "$prefix" = NONE && prefix=$ac_default_prefix
+AC_DEFINE_UNQUOTED(PREFIX, ["${prefix}"])
 
 # Checks for programs.
 AC_PROG_CC
