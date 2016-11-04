@@ -14,6 +14,7 @@ CONF = devd/asmctl.conf
 SRCS = src/asmctl.c
 OBJS = $(SRCS:.c=.o)
 PROG = asmctl
+VAR  = /var
 
 all: $(PROG) devd/asmctl.conf
 
@@ -30,6 +31,7 @@ clean:
 	rm -f $(OBJS) $(PROG) devd/asmctl.conf
 
 install: $(PROG) $(CONF)
+	$(INSTALL) -d $(VAR)/lib
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -m 4755 $(PROG) $(bindir)
 	$(INSTALL) -d -m 644 $(sysconfdir)/devd

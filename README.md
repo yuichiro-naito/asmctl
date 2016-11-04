@@ -53,13 +53,13 @@ Assigning following key bindings work similar to Apple Macbook series.
 
 ## RESTORE PREVIOUS BRIGHTNESS
 
-Asmctl stores sysctl values to ```/usr/local/var/asmctl.conf```.
+Asmctl stores sysctl values to ```/var/lib/asmctl.conf```.
 
 Adding following command to ```/etc/rc.local```.
 It restores sysctl values on next boot.
 
 ```
-sysctl -f /var/local/var/asmctl.conf
+sysctl -f /var/lib/asmctl.conf
 ```
 
 ## FOLLOWING AC POWER STATUS
