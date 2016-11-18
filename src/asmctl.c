@@ -77,7 +77,7 @@ int video_fullpower_level;
 int ac_powered=0;
 
 /* file name to save state */
-static char *conf_filename=PREFIX"/var/asmctl.conf";
+static char *conf_filename="/var/lib/asmctl.conf";
 
 /**
    Store backlight levels to file.
