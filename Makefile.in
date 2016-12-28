@@ -34,5 +34,5 @@ install: $(PROG) $(CONF)
 	$(INSTALL) -d $(VAR)/lib
 	$(INSTALL) -d $(bindir)
 	$(INSTALL) -m 4755 $(PROG) $(bindir)
-	$(INSTALL) -d -m 644 $(sysconfdir)/devd
+	$(INSTALL) -d -m 755 $(sysconfdir)/devd
 	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
