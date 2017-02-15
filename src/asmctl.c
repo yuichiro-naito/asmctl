@@ -322,7 +322,7 @@ int get_video_levels()
 	v=(int*)realloc(video_levels,n*sizeof(int));
 	if (v==NULL)
 	{
-		fprintf(stderr,"failed to allocate %ld bytes memory\n",buflen);
+		fprintf(stderr,"failed to allocate %zu bytes memory\n",buflen);
 		return -1;
 	}
 	memcpy(v,&buf[2],n*sizeof(int));
