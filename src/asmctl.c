@@ -40,10 +40,19 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <fcntl.h>
 #include <errno.h>
+#include <osreldate.h>
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
+#endif
+
+#if (defined(HAVE_SYS_CAPSICUM_H) && (HAVE_LIBCASPER_H))
+#  define USE_CAPSICUM 1
+#  include <sys/capsicum.h>
+#  include <libcasper.h>
+#  include <casper/cap_sysctl.h>
 #endif
 
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
@@ -79,6 +88,14 @@ int ac_powered=0;
 /* file name to save state */
 static char *conf_filename="/var/lib/asmctl.conf";
 
+/* file descriptor for the state file */
+int conf_fd;
+
+#ifdef USE_CAPSICUM
+cap_channel_t *ch_casper, *ch_sysctl;
+#define sysctlbyname(A,B,C,D,E) cap_sysctlbyname(ch_sysctl,(A),(B),(C),(D),(E))
+#endif
+
 /**
    Store backlight levels to file.
    Write in sysctl.conf(5) format to restore by sysctl(1)
@@ -88,7 +105,7 @@ int store_conf_file()
 	int rc;
 	FILE *fp;
 
-	fp=fopen(conf_filename,"w");
+	fp=fdopen(conf_fd,"w");
 	if (fp==NULL)
 	{
 		fprintf(stderr,"can not write %s\n",conf_filename);
@@ -334,9 +351,54 @@ int get_video_levels()
 }
 
 
+#ifdef USE_CAPSICUM
+int init_capsicum()
+{
+        cap_rights_t conf_fd_rights;
+
+        /* Open a channel to casperd */
+        ch_casper = cap_init();
+        if (ch_casper == NULL) {
+		fprintf(stderr,"cap_init() failed\n");
+		return -1;
+        }
+
+        /* Enter capability mode */
+        cap_enter();
+
+        /* limit conf_fd to write only*/
+        cap_rights_init(&conf_fd_rights, CAP_WRITE);
+        if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
+		fprintf(stderr,"cap_rights_limit() failed\n");
+		return -1;
+        }
+
+        /* open channel to casper sysctl */
+        ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
+        if (ch_sysctl == NULL) {
+		fprintf(stderr,"cap_service_open(\"system.sysctl\") failed\n");
+		return -1;
+        }
+
+        return 0;
+}
+#endif
+
+
 int main(int argc, char *argv[])
 {
 	int d;
+
+	conf_fd=open(conf_filename, O_CREAT|O_WRONLY);
+	if (conf_fd<0)
+	{
+		fprintf(stderr,"can not open %s\n",conf_filename);
+		return 1;
+	}
+
+#ifdef USE_CAPSICUM
+        if (init_capsicum()<0) return 1;
+#endif
 
 	/* initialize */
 	if (get_ac_powered()<0) return 1;
