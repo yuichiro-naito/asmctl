@@ -42,7 +42,6 @@
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
-#include <osreldate.h>
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
