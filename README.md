@@ -51,17 +51,6 @@ Assigning following key bindings work similar to Apple Macbook series.
 | F5  | asmctl key down   |
 | F6  | asmctl key up     |
 
-## RESTORE PREVIOUS BRIGHTNESS
-
-Asmctl stores sysctl values to ```/var/lib/asmctl.conf```.
-
-Adding following command to ```/etc/rc.local```.
-It restores sysctl values on next boot.
-
-```
-sysctl -f /var/lib/asmctl.conf
-```
-
 ## FOLLOWING AC POWER STATUS
 
 FreeBSD kernel has two acpi video brightness values.
