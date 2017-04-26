@@ -66,3 +66,9 @@
 
 /* Define local state directory name */
 #undef LOCALSTATEDIR
+
+/* Define to 1 if you have the <sys/capsicum.h> header file. */
+#undef HAVE_SYS_CAPSICUM_H
+
+/* Define to 1 if you have the <libcasper.h> header file. */
+#undef HAVE_LIBCASPER_H
