@@ -104,6 +104,8 @@ int store_conf_file()
 	int rc;
 	FILE *fp;
 
+	ftruncate(conf_fd, 0);
+	lseek(conf_fd, 0, SEEK_SET);
 	fp=fdopen(conf_fd,"w");
 	if (fp==NULL)
 	{
@@ -269,33 +271,42 @@ int get_video_down_level()
 int get_video_level()
 {
 	int rc;
-	char buf[sizeof(int)];
-	size_t buflen=sizeof(int);
-	int i;
-	const static char *keys[]=
-	{
-		VIDEO_CUR_LEVEL,
-		VIDEO_ECO_LEVEL,
-		VIDEO_FUL_LEVEL
-	};
-	static int *vptr[]=
-	{
-		&video_current_level,
-		&video_economy_level,
-		&video_fullpower_level
-	};
+	FILE *fp;
+	char buf[128];
+	char name[80];
+	char *p;
+	int value, len;
 
-	for (i=0;i<sizeof(keys)/sizeof(char*);i++) {
-		rc=sysctlbyname(keys[i],
-				buf, &buflen, NULL,0);
-		if (rc<0) {
-			fprintf(stderr,"sysctl %s :%s\n",
-				keys[i],strerror(errno));
-			return -1;
-		}
+	lseek(conf_fd, 0, SEEK_SET);
 
-		memcpy(vptr[i],buf,sizeof(int));
+	fp=fdopen(conf_fd,"r");
+	if (fp==NULL)
+	{
+		fprintf(stderr,"can not read %s\n",conf_filename);
+		return -1;
 	}
+	while(fgets(buf,sizeof(buf),fp)!=NULL) {
+		if (buf[0]=='#') continue;
+		p = strchr(buf, '=');
+		if (p == NULL) continue;
+		len = p - buf;
+		len = MIN(len, sizeof(name)-1);
+		strncpy(name, buf, len);
+		name[len]='\0';
+		value = strtol(p+1, &p, 10);
+		if (*p != '\n') continue;
+
+		if (strcmp(name,VIDEO_ECO_LEVEL)==0) {
+			video_economy_level=value;
+		} else if (strcmp(name,VIDEO_FUL_LEVEL)==0) {
+			video_fullpower_level=value;
+		} else if (strcmp(name,VIDEO_CUR_LEVEL)==0) {
+			video_current_level=value;
+		}
+	}
+
+	fdclose(fp, NULL);
+
 	return 0;
 }
 
@@ -353,33 +364,34 @@ int get_video_levels()
 #ifdef USE_CAPSICUM
 int init_capsicum()
 {
-        cap_rights_t conf_fd_rights;
+	cap_rights_t conf_fd_rights;
 
-        /* Open a channel to casperd */
-        ch_casper = cap_init();
-        if (ch_casper == NULL) {
+	/* Open a channel to casperd */
+	ch_casper = cap_init();
+	if (ch_casper == NULL) {
 		fprintf(stderr,"cap_init() failed\n");
 		return -1;
-        }
+	}
 
-        /* Enter capability mode */
-        cap_enter();
+	/* Enter capability mode */
+	cap_enter();
 
-        /* limit conf_fd to write only*/
-        cap_rights_init(&conf_fd_rights, CAP_WRITE|CAP_FCNTL);
-        if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
+	/* limit conf_fd to read/write/seek/fcntl */
+	/* fcntl is used in fdopen(3) */
+	cap_rights_init(&conf_fd_rights, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_FCNTL);
+	if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
 		fprintf(stderr,"cap_rights_limit() failed\n");
 		return -1;
-        }
+	}
 
-        /* open channel to casper sysctl */
-        ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
-        if (ch_sysctl == NULL) {
+	/* open channel to casper sysctl */
+	ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
+	if (ch_sysctl == NULL) {
 		fprintf(stderr,"cap_service_open(\"system.sysctl\") failed\n");
 		return -1;
-        }
+	}
 
-        return 0;
+	return 0;
 }
 #endif
 
@@ -388,7 +400,7 @@ int main(int argc, char *argv[])
 {
 	int d;
 
-	conf_fd=open(conf_filename, O_CREAT|O_WRONLY);
+	conf_fd=open(conf_filename, O_CREAT|O_RDWR);
 	if (conf_fd<0)
 	{
 		fprintf(stderr,"can not open %s\n",conf_filename);
@@ -396,7 +408,7 @@ int main(int argc, char *argv[])
 	}
 
 #ifdef USE_CAPSICUM
-        if (init_capsicum()<0) return 1;
+	if (init_capsicum()<0) return 1;
 #endif
 
 	/* initialize */
