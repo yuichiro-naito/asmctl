@@ -376,8 +376,9 @@ int init_capsicum()
 	/* Enter capability mode */
 	cap_enter();
 
-	/* limit conf_fd to write only*/
-	cap_rights_init(&conf_fd_rights, CAP_WRITE|CAP_FCNTL|CAP_READ|CAP_SEEK);
+	/* limit conf_fd to read/write/seek/fcntl */
+	/* fcntl is used in fdopen(3) */
+	cap_rights_init(&conf_fd_rights, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_FCNTL);
 	if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
 		fprintf(stderr,"cap_rights_limit() failed\n");
 		return -1;
