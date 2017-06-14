@@ -60,3 +60,9 @@ Asmctl switches these two values specified by acpi ac power status.
 
 ```/usr/local/etc/devd/asmctl.conf``` makes FreeBSD devd
 triggering ```asmctl video acpi```.
+
+## SECURITY
+
+Changing hw.acpi.video.* sysctl variables requires root privilege.
+For this reason, asmctl is installed with setuid root.
+On FreeBSD-11.0R or higher, asmctl uses capsicum(4) to be sandboxed.
