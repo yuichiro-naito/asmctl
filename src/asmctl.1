@@ -5,27 +5,28 @@
 .Nm asmctl
 .Nd controlling keyboard backlight and LCD backlight
 .Sh SYNOPSIS
-.Nm asmctl video
+.Nm asmctl Ar video
 .Op Ar up | down | acpi
 .Br
-.Nm asmctl key
+.Nm asmctl Ar key
 .Op Ar up | down
 .Sh DESCRIPTION
 The
 .Nm
-command line utility controls LCD backlight and keyboard backlight
+command controls LCD backlight and keyboard backlight
 by setting following sysctl variables.
 
-.Dl hw.acpi.video.lcd0.brightness dev.asmc.0.light.control
+.Dl hw.acpi.video.lcd0.brightness
+.Dl dev.asmc.0.light.control
 
-The options are as follows:
+.Sh OPTIONS
 .Bl -tag -width indent
 .It Ar video up
 LCD backlight more bright.
 .It Ar video down
 LCD backlight less dark.
 .It Ar video acpi
-switch LCD backlight brightness depends on acpi power mode (AC or Battery).
+switch LCD backlight brightness for AC powerd or Battery powered, depends on acpi status.
 .It Ar key up
 keyboard backlight more bright.
 .It Ar key down
@@ -34,7 +35,16 @@ keybaord backlight less dark.
 
 .Sh REQUIERMENT
 
- asmctl.ko
- acpi_video.ko
+Following kernel modules are required.
 
-.Sh 
+.Dl asmctl.ko
+.Dl acpi_video.ko
+
+.Sh SECURITY
+Changing hw.acpi.video.* sysctl variables requires root privilege.
+For this reason,
+.Nm
+is installed with setuid root.
+On FreeBSD-11.0R or higher,
+.Nm
+uses capsicum(4) to be sandboxed.
