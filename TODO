@@ -1,8 +1,9 @@
 TODO
-- write a manual.
+<none>
 
 DONE
 * restore backlight status on boot
 * make configure script to change PREFIX
 * handle acpi power state change
 * save backlight status on change
+* write a manual.
