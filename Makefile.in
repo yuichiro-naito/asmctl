@@ -3,6 +3,7 @@ exec_prefix = @exec_prefix@
 bindir = @bindir@
 localstatedir = @localstatedir@
 sysconfdir = @sysconfdir@
+mandir = @mandir@
 INSTALL = @INSTALL@
 SED = @SED@
 CC = @CC@
@@ -11,12 +12,13 @@ LIBS = @LIBS@
 INCS = -I.
 
 CONF = devd/asmctl.conf
+MAN  = src/asmctl.1.gz
 SRCS = src/asmctl.c
 OBJS = $(SRCS:.c=.o)
 PROG = asmctl
 VAR  = /var
 
-all: $(PROG) devd/asmctl.conf
+all: $(PROG) $(MAN) $(CONF)
 
 $(PROG): $(OBJS)
 	$(CC) -o $@ $(OBJS) $(LIBS)
@@ -27,8 +29,11 @@ $(PROG): $(OBJS)
 $(CONF): $(CONF).s
 	$(SED) -e "s|%%BINDIR%%|$(bindir)|" < $(CONF).s > $(CONF)
 
+$(MAN): src/asmctl.1
+	gzip -k $?
+
 clean:
-	rm -f $(OBJS) $(PROG) devd/asmctl.conf
+	rm -f $(OBJS) $(PROG) $(MAN) $(CONF)
 
 install: $(PROG) $(CONF)
 	$(INSTALL) -d $(VAR)/lib
@@ -36,3 +41,4 @@ install: $(PROG) $(CONF)
 	$(INSTALL) -m 4755 $(PROG) $(bindir)
 	$(INSTALL) -d -m 755 $(sysconfdir)/devd
 	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
+	$(INSTALL) -m 444 $(MAN) $(mandir)/man1
