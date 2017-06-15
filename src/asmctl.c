@@ -290,7 +290,7 @@ int get_video_level()
 		p = strchr(buf, '=');
 		if (p == NULL) continue;
 		len = p - buf;
-		len = MIN(len, sizeof(name)-1);
+		len = (len < sizeof(name)-1) ? len : sizeof(name)-1;
 		strncpy(name, buf, len);
 		name[len]='\0';
 		value = strtol(p+1, &p, 10);
