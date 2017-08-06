@@ -8,6 +8,21 @@ Asmctl uses sysctl variables of dev.asmc.0.* and hw.acpi.video.lcd0.*
 which are provided by FreeBSD kernel.
 
 
+## REQUIREMENT
+
+Asmctl requires following two kernel modules.
+
+ 1. asmc
+ 1. acpi_video
+
+To load these modules on boot,
+write following sentences in `/boot/loader.conf`.
+
+```
+asmc_load="YES"
+acpi_video_load="YES"
+```
+
 ## HOW TO INSTALL
 
 ```
