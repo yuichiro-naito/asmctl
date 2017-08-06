@@ -38,4 +38,5 @@ install: $(PROG) $(CONF)
 	$(INSTALL) -m 4755 $(PROG) $(bindir)
 	$(INSTALL) -d -m 755 $(sysconfdir)/devd
 	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
+	$(INSTALL) -d -m 755 $(mandir)/man1
 	$(INSTALL) -m 444 $(MAN) $(mandir)/man1
