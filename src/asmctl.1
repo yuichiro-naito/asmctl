@@ -14,7 +14,7 @@
 The
 .Nm
 command controls LCD backlight and keyboard backlight
-by setting following sysctl variables.
+by setting following sysctl(8) variables.
 
 .Dl hw.acpi.video.lcd0.brightness
 .Dl dev.asmc.0.light.control
@@ -36,7 +36,7 @@ keybaord backlight less dark.
 .Sh FILES
 .Bl -tag -width indent
 .It Ar /var/lib/asmctl.conf
-Saved sysctl variables for next boot.
+Saved sysctl(8) values for next boot.
 .El
 
 .Sh REQUIERMENT
