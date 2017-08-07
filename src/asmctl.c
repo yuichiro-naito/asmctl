@@ -76,10 +76,10 @@ int *video_levels=NULL;
 int video_current_level;
 
 /* Video backlight economy level (one of video_levels)*/
-int video_economy_level;
+int video_economy_level=-1;
 
 /* Video backlight fullpower level (one of video_levels)*/
-int video_fullpower_level;
+int video_fullpower_level=-1;
 
 /* set 1 if AC powered else 0 */
 int ac_powered=0;
@@ -356,6 +356,15 @@ int get_video_levels()
 
 	num_of_video_levels=n;
 	video_levels=v;
+
+    /* if conf_file is empty or not created,
+       use default value */
+	if (video_economy_level < 0) {
+		video_economy_level = n > 3 ? v[3] : v[n];
+	}
+	if (video_fullpower_level < 0) {
+		video_fullpower_level = n > 3 ? v[3] : v[n];
+	}
 
 	return 0;
 }
