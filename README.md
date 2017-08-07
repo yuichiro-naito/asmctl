@@ -16,7 +16,7 @@ Asmctl requires following two kernel modules.
  1. acpi_video
 
 To load these modules on boot,
-write following sentences in `/boot/loader.conf`.
+write following lines in `/boot/loader.conf`.
 
 ```
 asmc_load="YES"
