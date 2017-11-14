@@ -383,7 +383,10 @@ int init_capsicum()
 	}
 
 	/* Enter capability mode */
-	cap_enter();
+	if (cap_enter() < 0) {
+		fprintf(stderr,"capability is not supported\n");
+		return -1;
+	}
 
 	/* limit conf_fd to read/write/seek/fcntl */
 	/* fcntl is used in fdopen(3) */
