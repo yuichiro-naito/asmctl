@@ -91,7 +91,7 @@ static char *conf_filename="/var/lib/asmctl.conf";
 int conf_fd;
 
 #ifdef USE_CAPSICUM
-cap_channel_t *ch_casper, *ch_sysctl;
+cap_channel_t *ch_sysctl;
 #define sysctlbyname(A,B,C,D,E) cap_sysctlbyname(ch_sysctl,(A),(B),(C),(D),(E))
 #endif
 
@@ -373,6 +373,7 @@ int get_video_levels()
 #ifdef USE_CAPSICUM
 int init_capsicum()
 {
+	cap_channel_t *ch_casper;
 	cap_rights_t conf_fd_rights;
 
 	/* Open a channel to casperd */
@@ -402,6 +403,9 @@ int init_capsicum()
 		fprintf(stderr,"cap_service_open(\"system.sysctl\") failed\n");
 		return -1;
 	}
+
+	/* close connection to casper */
+	cap_close(ch_casper);
 
 	return 0;
 }
