@@ -412,12 +412,12 @@ int init_capsicum()
 
 	/* limit sysctl names as following */
 	limits = nvlist_create(0);
-	nvlist_add_number(limits, VIDEO_LEVELS, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, VIDEO_LEVELS, CAP_SYSCTL_READ);
 	nvlist_add_number(limits, VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
 	nvlist_add_number(limits, VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
 	nvlist_add_number(limits, VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
 	nvlist_add_number(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, AC_POWER, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, AC_POWER, CAP_SYSCTL_READ);
 
 	rc = cap_limit_set(ch_sysctl, limits);
 	if (rc < 0) {
