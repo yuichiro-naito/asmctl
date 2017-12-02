@@ -49,6 +49,7 @@
 
 #if (defined(HAVE_SYS_CAPSICUM_H) && (HAVE_LIBCASPER_H))
 #  define USE_CAPSICUM 1
+#  include <sys/nv.h>
 #  include <sys/capsicum.h>
 #  include <libcasper.h>
 #  include <casper/cap_sysctl.h>
@@ -373,6 +374,8 @@ int get_video_levels()
 #ifdef USE_CAPSICUM
 int init_capsicum()
 {
+	int rc;
+	nvlist_t *limits;
 	cap_channel_t *ch_casper;
 	cap_rights_t conf_fd_rights;
 
@@ -386,6 +389,7 @@ int init_capsicum()
 	/* Enter capability mode */
 	if (cap_enter() < 0) {
 		fprintf(stderr,"capability is not supported\n");
+		cap_close(ch_casper);
 		return -1;
 	}
 
@@ -394,6 +398,7 @@ int init_capsicum()
 	cap_rights_init(&conf_fd_rights, CAP_READ|CAP_WRITE|CAP_SEEK|CAP_FCNTL);
 	if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
 		fprintf(stderr,"cap_rights_limit() failed\n");
+		cap_close(ch_casper);
 		return -1;
 	}
 
@@ -401,8 +406,29 @@ int init_capsicum()
 	ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
 	if (ch_sysctl == NULL) {
 		fprintf(stderr,"cap_service_open(\"system.sysctl\") failed\n");
+		cap_close(ch_casper);
 		return -1;
 	}
+
+	/* limit sysctl names as following */
+	limits = nvlist_create(0);
+	nvlist_add_number(limits, VIDEO_LEVELS, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, AC_POWER, CAP_SYSCTL_RDWR);
+
+	rc = cap_limit_set(ch_sysctl, limits);
+	if (rc < 0) {
+		fprintf(stderr,"cap_service_limit failed %s\n",strerror(errno));
+		nvlist_destroy(limits);
+		cap_close(ch_casper);
+		cap_close(ch_sysctl);
+		return -1;
+	}
+
+	nvlist_destroy(limits);
 
 	/* close connection to casper */
 	cap_close(ch_casper);
