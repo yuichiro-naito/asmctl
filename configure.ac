@@ -15,12 +15,13 @@ AC_PROG_SED
 AC_PROG_INSTALL
 
 # Checks for libraries.
+AC_CHECK_LIB(nv, nvlist_create)
 AC_CHECK_LIB(casper, cap_init)
 AC_CHECK_LIB(cap_sysctl, cap_sysctlbyname)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
-AC_CHECK_HEADERS([sys/capsicum.h libcasper.h])
+AC_CHECK_HEADERS([sys/nv.h sys/capsicum.h libcasper.h])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T

@@ -3135,6 +3135,51 @@ test -z "$INSTALL_DATA" && INSTALL_DATA='${INSTALL} -m 644'
 
 # Checks for libraries.
 
+{ $as_echo "$as_me:${as_lineno-$LINENO}: checking for nvlist_create in -lnv" >&5
+$as_echo_n "checking for nvlist_create in -lnv... " >&6; }
+if ${ac_cv_lib_nv_nvlist_create+:} false; then :
+  $as_echo_n "(cached) " >&6
+else
+  ac_check_lib_save_LIBS=$LIBS
+LIBS="-lnv  $LIBS"
+cat confdefs.h - <<_ACEOF >conftest.$ac_ext
+/* end confdefs.h.  */
+
+/* Override any GCC internal prototype to avoid an error.
+   Use char because int might match the return type of a GCC
+   builtin and then its argument prototype would still apply.  */
+#ifdef __cplusplus
+extern "C"
+#endif
+char nvlist_create ();
+int
+main ()
+{
+return nvlist_create ();
+  ;
+  return 0;
+}
+_ACEOF
+if ac_fn_c_try_link "$LINENO"; then :
+  ac_cv_lib_nv_nvlist_create=yes
+else
+  ac_cv_lib_nv_nvlist_create=no
+fi
+rm -f core conftest.err conftest.$ac_objext \
+    conftest$ac_exeext conftest.$ac_ext
+LIBS=$ac_check_lib_save_LIBS
+fi
+{ $as_echo "$as_me:${as_lineno-$LINENO}: result: $ac_cv_lib_nv_nvlist_create" >&5
+$as_echo "$ac_cv_lib_nv_nvlist_create" >&6; }
+if test "x$ac_cv_lib_nv_nvlist_create" = xyes; then :
+  cat >>confdefs.h <<_ACEOF
+#define HAVE_LIBNV 1
+_ACEOF
+
+  LIBS="-lnv $LIBS"
+
+fi
+
 { $as_echo "$as_me:${as_lineno-$LINENO}: checking for cap_init in -lcasper" >&5
 $as_echo_n "checking for cap_init in -lcasper... " >&6; }
 if ${ac_cv_lib_casper_cap_init+:} false; then :
@@ -3637,7 +3682,7 @@ fi
 
 done
 
-for ac_header in sys/capsicum.h libcasper.h
+for ac_header in sys/nv.h sys/capsicum.h libcasper.h
 do :
   as_ac_Header=`$as_echo "ac_cv_header_$ac_header" | $as_tr_sh`
 ac_fn_c_check_header_mongrel "$LINENO" "$ac_header" "$as_ac_Header" "$ac_includes_default"
