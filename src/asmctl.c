@@ -442,7 +442,7 @@ int main(int argc, char *argv[])
 {
 	int d;
 
-	conf_fd=open(conf_filename, O_CREAT|O_RDWR);
+	conf_fd=open(conf_filename, O_CREAT|O_RDWR, 0600);
 	if (conf_fd<0)
 	{
 		fprintf(stderr,"can not open %s\n",conf_filename);
