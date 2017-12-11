@@ -6,6 +6,7 @@ localstatedir = @localstatedir@
 sysconfdir = @sysconfdir@
 mandir = @mandir@
 INSTALL = @INSTALL@
+STRIP_CMD ?= /usr/bin/strip
 SED = @SED@
 CC = @CC@
 DEFS = -O @DEFS@
@@ -32,6 +33,11 @@ $(CONF): $(CONF).s
 
 clean:
 	rm -f $(OBJS) $(PROG) $(CONF)
+
+install-strip: strip install
+
+strip: $(PROG) $(CONF)
+	$(STRIP_CMD) $(PROG)
 
 install: $(PROG) $(CONF)
 	$(INSTALL) -d $(DESTDIR)$(VAR)/lib
