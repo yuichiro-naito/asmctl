@@ -34,10 +34,10 @@ clean:
 	rm -f $(OBJS) $(PROG) $(CONF)
 
 install: $(PROG) $(CONF)
-	$(INSTALL) -d $(VAR)/lib
-	$(INSTALL) -d $(bindir)
-	$(INSTALL) -m 4755 $(PROG) $(bindir)
-	$(INSTALL) -d -m 755 $(sysconfdir)/devd
-	$(INSTALL) -m 644 $(CONF) $(sysconfdir)/devd
-	$(INSTALL) -d -m 755 $(mandir)/man1
-	$(INSTALL) -m 444 $(MAN) $(mandir)/man1
+	$(INSTALL) -d $(DESTDIR)$(VAR)/lib
+	$(INSTALL) -d $(DESTDIR)$(bindir)
+	$(INSTALL) -m 4755 $(PROG) $(DESTDIR)$(bindir)
+	$(INSTALL) -d -m 755 $(DESTDIR)$(sysconfdir)/devd
+	$(INSTALL) -m 644 $(CONF) $(DESTDIR)$(sysconfdir)/devd
+	$(INSTALL) -d -m 755 $(DESTDIR)$(mandir)/man1
+	$(INSTALL) -m 444 $(MAN) $(DESTDIR)$(mandir)/man1
