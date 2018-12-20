@@ -48,6 +48,7 @@
 #endif
 
 #if (defined(HAVE_SYS_CAPSICUM_H) && (HAVE_LIBCASPER_H))
+#  define WITH_CASPER  1      // WITH_CASPER is needed since 12.0R
 #  define USE_CAPSICUM 1
 #  include <sys/nv.h>
 #  include <sys/capsicum.h>
