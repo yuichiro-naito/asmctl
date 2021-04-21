@@ -22,15 +22,15 @@ by setting following sysctl(8) variables.
 .Sh OPTIONS
 .Bl -tag -width indent
 .It Ar video up
-LCD backlight more bright.
+Brighten the LCD backlight.
 .It Ar video down
-LCD backlight less dark.
+Dim the LCD backlight
 .It Ar video acpi
-switch LCD backlight brightness for AC powerd or Battery powered, depends on acpi status.
+Adjust the LCD backlight brightness based on whether the laptop is on AC power or battery power.  Relies on acpi status.
 .It Ar key up
-keyboard backlight more bright.
+Brighten the keyboard backlight.
 .It Ar key down
-keybaord backlight less dark.
+Dim the keyboard backlight.
 .El
 
 .Sh FILES
@@ -39,9 +39,9 @@ keybaord backlight less dark.
 Saved sysctl(8) values for next boot.
 .El
 
-.Sh REQUIERMENT
+.Sh REQUIERMENTS
 
-Following kernel modules are required.
+The following kernel modules are required.
 
 .Dl asmctl.ko
 .Dl acpi_video.ko
