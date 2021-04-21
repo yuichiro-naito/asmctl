@@ -8,9 +8,9 @@ Asmctl uses sysctl variables of dev.asmc.0.* and hw.acpi.video.lcd0.*
 which are provided by FreeBSD kernel.
 
 
-## REQUIREMENT
+## REQUIREMENTS
 
-Asmctl requires following two kernel modules.
+Asmctl requires the following two kernel modules.
 
  1. asmc
  1. acpi_video
@@ -33,25 +33,25 @@ $ make install
 
 ## HOW TO USE
 
-1. set video backlight more bright
+1. Brighten the LCD backlight
 
    ```
    $ /usr/local/bin/asmctl video up
    ```
 
-2. set video backlight less dark
+2. Dim the LCD backlight
 
    ```
    $ /usr/local/bin/asmctl video down
    ```
 
-3. set keyboard backlight more bright
+3. Brighten the keyboard backlight
 
    ```
    $ /usr/local/bin/asmctl key up
    ```
 
-4. set keyboard backlight less dark
+4. Dim the keyboard backlight
 
    ```
    $ /usr/local/bin/asmctl key down
@@ -71,7 +71,7 @@ Assigning following key bindings work similar to Apple Macbook series.
 FreeBSD kernel has two acpi video brightness values.
 One is for ac powered and the other is for battery powered.
 
-Asmctl switches these two values specified by acpi ac power status.
+Asmctl adjusts these two values relies on acpi ac power status.
 
 ```/usr/local/etc/devd/asmctl.conf``` makes FreeBSD devd
 triggering ```asmctl video acpi```.
