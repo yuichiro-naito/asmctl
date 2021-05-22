@@ -54,6 +54,11 @@
 #  include <sys/capsicum.h>
 #  include <libcasper.h>
 #  include <casper/cap_sysctl.h>
+#  ifdef HAVE_CAPSICUM_HELPERS_H
+#    include "capsicum_helpers.h"
+#  else
+#    include <nl_types.h>
+#  endif
 #endif
 
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
@@ -376,9 +381,19 @@ int get_video_levels()
 int init_capsicum()
 {
 	int rc;
+#ifdef HAVE_CAP_SYSCTL_LIMIT_NAME
+	void *limits;
+#else
 	nvlist_t *limits;
+#endif
 	cap_channel_t *ch_casper;
 	cap_rights_t conf_fd_rights;
+
+#ifdef HAVE_CAPSICUM_HELPERS_H
+	caph_cache_catpages();
+#else
+	catopen("libc", NL_CAT_LOCALE);
+#endif
 
 	/* Open a channel to casperd */
 	ch_casper = cap_init();
@@ -411,6 +426,23 @@ int init_capsicum()
 		return -1;
 	}
 
+#ifdef HAVE_CAP_SYSCTL_LIMIT_NAME
+	limits = cap_sysctl_limit_init(ch_sysctl);
+	cap_sysctl_limit_name(limits, VIDEO_LEVELS, CAP_SYSCTL_READ);
+	cap_sysctl_limit_name(limits, VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, AC_POWER, CAP_SYSCTL_READ);
+
+	rc = cap_sysctl_limit(limits);
+	if (rc < 0) {
+		fprintf(stderr,"cap_sysctl_limit failed %s\n",strerror(errno));
+		cap_close(ch_casper);
+		cap_close(ch_sysctl);
+		return -1;
+	}
+#else
 	/* limit sysctl names as following */
 	limits = nvlist_create(0);
 	nvlist_add_number(limits, VIDEO_LEVELS, CAP_SYSCTL_READ);
@@ -422,7 +454,7 @@ int init_capsicum()
 
 	rc = cap_limit_set(ch_sysctl, limits);
 	if (rc < 0) {
-		fprintf(stderr,"cap_service_limit failed %s\n",strerror(errno));
+		fprintf(stderr,"cap_limit_set failed %s\n",strerror(errno));
 		nvlist_destroy(limits);
 		cap_close(ch_casper);
 		cap_close(ch_sysctl);
@@ -430,6 +462,7 @@ int init_capsicum()
 	}
 
 	nvlist_destroy(limits);
+#endif
 
 	/* close connection to casper */
 	cap_close(ch_casper);

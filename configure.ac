@@ -6,8 +6,7 @@ AC_INIT([asmctl], [1.0], [naito.yuichiro@gmail.com])
 AC_CONFIG_SRCDIR([src/asmctl.c])
 AC_CONFIG_HEADERS([config.h])
 
-test "$prefix" = NONE && prefix=$ac_default_prefix
-AC_DEFINE_UNQUOTED(PREFIX, ["${prefix}"])
+AC_PREFIX_DEFAULT(/usr/local)
 
 # Checks for programs.
 AC_PROG_CC
@@ -21,7 +20,10 @@ AC_CHECK_LIB(cap_sysctl, cap_sysctlbyname)
 
 # Checks for header files.
 AC_CHECK_HEADERS([stdlib.h string.h])
-AC_CHECK_HEADERS([sys/nv.h sys/capsicum.h libcasper.h])
+AC_CHECK_HEADERS([sys/nv.h sys/capsicum.h libcasper.h capsicum_helpers.h])
+
+# Check for functions.
+AC_CHECK_FUNCS([cap_sysctl_limit_name])
 
 # Checks for typedefs, structures, and compiler characteristics.
 AC_TYPE_SIZE_T
