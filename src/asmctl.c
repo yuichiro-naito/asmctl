@@ -490,12 +490,12 @@ int main(int argc, char *argv[])
 	/* initialize */
 	if (get_ac_powered()<0) return 1;
 	if (get_video_level()<0) return 1;
-	if (get_video_levels()<0) return 1;
 
 	if (argc>2) {
 		if (strcmp(argv[1],"video")==0||
 		    strcmp(argv[1],"lcd")==0)
 		{
+			if (get_video_levels()<0) return 1;
 			if (strcmp(argv[2],"up")==0||
 			    strcmp(argv[2],"u")==0)
 			{
