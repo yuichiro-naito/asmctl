@@ -607,7 +607,7 @@ int init_capsicum() {
 		return rc;
 	}
 
-	/* limit conf_fd to read/write/seek/fcntl */
+	/* limit conf_fd to read/write/seek/fcntl/ftruncate */
 	/* fcntl is used in fdopen(3) */
 	cap_rights_init(&conf_fd_rights,
 			CAP_READ | CAP_WRITE | CAP_SEEK | CAP_FCNTL | CAP_FTRUNCATE);
