@@ -568,6 +568,11 @@ int init_capsicum()
 	cap_rights_t conf_fd_rights;
 	cap_rights_t backlight_fd_rights;
 
+	static const unsigned long backlightcmds[] = {
+		BACKLIGHTUPDATESTATUS,
+		BACKLIGHTGETSTATUS
+	};
+
 #ifdef HAVE_CAPSICUM_HELPERS_H
 	caph_cache_catpages();
 #else
@@ -597,14 +602,20 @@ int init_capsicum()
 		return -1;
 	}
 
-	/* limit backlight_device to read/write/ioctl XXX: also use cap_ioctls_limit */
-/*	cap_rights_init(&backlight_fd_rights, CAP_READ|CAP_IOCTL|CAP_FCNTL|CAP_WRITE);
+	/* limit backlight_fd to ioctl */
+	cap_rights_init(&backlight_fd_rights, CAP_IOCTL);
 	if (cap_rights_limit(backlight_fd, &backlight_fd_rights) < 0) {
 		fprintf(stderr,"cap_rights_limit() failed\n");
 		cap_close(ch_casper);
 		return -1;
 	}
-*/
+
+	/* limit allowed backlight_fd ioctl commands */
+	if (cap_ioctls_limit(backlight_fd, backlightcmds, nitems(backlightcmds)) < 0) {
+		fprintf(stderr,"cap_ioctls_limit() failed\n");
+		cap_close(ch_casper);
+		return -1;
+	}
 
 	/* open channel to casper sysctl */
 	ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
