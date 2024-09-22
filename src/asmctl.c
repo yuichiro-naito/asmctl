@@ -39,6 +39,7 @@
 #include <sys/types.h>
 #include <sys/sysctl.h>
 #include <sys/ioctl.h>
+#include <unistd.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
