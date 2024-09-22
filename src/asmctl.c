@@ -28,20 +28,24 @@
 /*
  * Command line tool for Apple's System Management Console (SMC).
  *
- * This command requires following sysctl variables.
+ * This command may require the following sysctl variables:
  *
  *  hw.acpi.video.lcd0.*    (acpi_video(4))
  *  hw.asmc.0.light.control (asmc(4))
  *  hw.acpi.acline          (acpi(4))
+ *
  */
 
 #include <sys/types.h>
 #include <sys/sysctl.h>
+#include <sys/ioctl.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <fcntl.h>
 #include <errno.h>
+
+#include <sys/backlight.h>
 
 #ifdef HAVE_CONFIG_H
 #  include "config.h"
@@ -63,39 +67,65 @@
 
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
-#define VIDEO_LEVELS "hw.acpi.video.lcd0.levels"
-#define VIDEO_ECO_LEVEL "hw.acpi.video.lcd0.economy"
-#define VIDEO_FUL_LEVEL "hw.acpi.video.lcd0.fullpower"
-#define VIDEO_CUR_LEVEL "hw.acpi.video.lcd0.brightness"
+#define ACPI_VIDEO_LEVELS "hw.acpi.video.lcd0.levels"
+
+#define ACPI_VIDEO_ECO_LEVEL "hw.acpi.video.lcd0.economy"
+#define ACPI_VIDEO_FUL_LEVEL "hw.acpi.video.lcd0.fullpower"
+#define ACPI_VIDEO_CUR_LEVEL "hw.acpi.video.lcd0.brightness"
+
+#define BACKLIGHT_ECO_LEVEL "backlight_economy_level"
+#define BACKLIGHT_FUL_LEVEL "backlight_full_level"
+#define BACKLIGHT_CUR_LEVEL "backlight_current_level"
 
 #define AC_POWER "hw.acpi.acline"
 
 /* Keyboard backlight current level (0-100) */
 int kb_current_level;
 
-/* Number of video levels */
+/* Number of video levels (either backlight(9) or acpi_video) */
 int num_of_video_levels=0;
 
-/* Array of video level values */
+/* Array of video level values (either backlight(9) or acpi_video) */
 int *video_levels=NULL;
 
-/* Video backlight current level (one of video_levels)*/
-int video_current_level;
+/* hw.acpi.video backlight current level (one of video_levels)*/
+int acpi_video_current_level;
 
-/* Video backlight economy level (one of video_levels)*/
-int video_economy_level=-1;
+/* hw.acpi.video  backlight economy level (one of video_levels)*/
+int acpi_video_economy_level=-1;
 
-/* Video backlight fullpower level (one of video_levels)*/
-int video_fullpower_level=-1;
+/* hw.acpi.video backlight fullpower level (one of video_levels)*/
+int acpi_video_fullpower_level=-1;
+
+/* Backlight(9) current level (one of video_levels)*/
+int backlight_current_level;
+
+/* Backlight(9) economy level (one of video_levels)*/
+int backlight_economy_level=-1;
+
+/* Backlight(9) fullpower level level (one of video_levels)*/
+int backlight_fullpower_level=-1;
 
 /* set 1 if AC powered else 0 */
 int ac_powered=0;
+
+/* set 1 if backlight(9) instead of hw.acpi.video*/
+int use_backlight=0;
+
+/* file name of default backlight device*/
+static char *backlight_device="/dev/backlight/backlight0";
 
 /* file name to save state */
 static char *conf_filename="/var/lib/asmctl.conf";
 
 /* file descriptor for the state file */
 int conf_fd;
+
+/* file descriptor for the default backlight device */
+int backlight_fd;
+
+/* struct containing backlight(9) properties */
+struct backlight_props props;
 
 #ifdef USE_CAPSICUM
 cap_channel_t *ch_sysctl;
@@ -122,11 +152,14 @@ int store_conf_file()
 	fprintf(fp,
 		"# DO NOT EDIT MANUALLY!\n"
 		"# This file is written by asmctl.\n");
-	fprintf(fp,"%s=%d\n",VIDEO_ECO_LEVEL,video_economy_level);
-	fprintf(fp,"%s=%d\n",VIDEO_FUL_LEVEL,video_fullpower_level);
-	fprintf(fp,"%s=%d\n",VIDEO_CUR_LEVEL,video_current_level);
+	fprintf(fp,"%s=%d\n",ACPI_VIDEO_ECO_LEVEL,acpi_video_economy_level);
+	fprintf(fp,"%s=%d\n",ACPI_VIDEO_FUL_LEVEL,acpi_video_fullpower_level);
+	fprintf(fp,"%s=%d\n",ACPI_VIDEO_CUR_LEVEL,acpi_video_current_level);
+	fprintf(fp,"%s=%d\n",BACKLIGHT_ECO_LEVEL,backlight_economy_level);
+	fprintf(fp,"%s=%d\n",BACKLIGHT_FUL_LEVEL,backlight_fullpower_level);
+	fprintf(fp,"%s=%d\n",BACKLIGHT_CUR_LEVEL,backlight_current_level);
 	fprintf(fp,"%s=%d\n",KB_CUR_LEVEL,kb_current_level);
-	rc=fclose(fp);
+	rc=fdclose(fp, NULL);
 	if (rc<0) {
 		fprintf(stderr,"can not write %s\n",conf_filename);
 		return -1;
@@ -177,25 +210,46 @@ int get_keyboard_backlight_level()
 	return rc;
 }
 
-int set_video_level(int val)
+void set_acpi_video_current_level()
+{
+	int rc;
+	char buf[sizeof(int)];
+	size_t buflen=sizeof(int);
+
+	rc = sysctlbyname(ACPI_VIDEO_CUR_LEVEL,
+			  buf, &buflen, NULL,0);
+
+	if (rc<0) {
+		fprintf(stderr,"sysctl %s : %s\n",
+			ACPI_VIDEO_CUR_LEVEL,strerror(errno));
+		return;
+	}
+
+	rc=*((int*)buf);
+	acpi_video_current_level=rc;
+}
+
+int set_acpi_video_level(int val)
 {
 	char *key;
 	int rc;
 	char buf[sizeof(int)];
 
+	if (val < 0 || val > 100) return -1;
+
 	memcpy(buf,&val,sizeof(int));
 
-	rc=sysctlbyname(VIDEO_CUR_LEVEL,
+	rc=sysctlbyname(ACPI_VIDEO_CUR_LEVEL,
 			NULL, NULL, buf, sizeof(int));
 	if (rc<0) {
 		fprintf(stderr,"sysctl %s : %s\n",
-			VIDEO_CUR_LEVEL,strerror(errno));
+			ACPI_VIDEO_CUR_LEVEL,strerror(errno));
 		return -1;
 	}
 
 	printf("set video brightness: %d\n",val);
 
-	key = (ac_powered)?VIDEO_FUL_LEVEL:VIDEO_ECO_LEVEL;
+	key = (ac_powered)?ACPI_VIDEO_FUL_LEVEL:ACPI_VIDEO_ECO_LEVEL;
 
 	rc=sysctlbyname(key,
 			NULL, NULL, buf, sizeof(int));
@@ -205,44 +259,74 @@ int set_video_level(int val)
 		return -1;
 	}
 
-	video_current_level=val;
+	acpi_video_current_level=val;
 
 	if (ac_powered)
-		video_fullpower_level=val;
+		acpi_video_fullpower_level=val;
 	else
-		video_economy_level=val;
+		acpi_video_economy_level=val;
 
 	return store_conf_file();
 }
 
-int set_acpi_video_level()
+int set_backlight_video_level(int val)
 {
-	int rc;
-	char buf[sizeof(int)];
-	int *ptr;
 
-	ptr = (ac_powered)?&video_fullpower_level:&video_economy_level;
-	memcpy(buf,ptr,sizeof(int));
+	if (val < 0 || val > 100) return -1;
 
-	rc=sysctlbyname(VIDEO_CUR_LEVEL,
-			NULL, NULL, buf, sizeof(int));
-	if (rc<0) {
-		fprintf(stderr,"sysctl %s : %s\n",
-			VIDEO_CUR_LEVEL,strerror(errno));
+	props.brightness=val;
+
+	if (ioctl(backlight_fd, BACKLIGHTUPDATESTATUS, &props) < 0) {
+		fprintf(stderr,"ioctl BACKLIGHTUPDATESTATUS : %s\n",
+			strerror(errno));
 		return -1;
 	}
 
-	printf("set video brightness: %d\n",*((int*)buf));
+	printf("set backlight brightness: %d\n",val);
 
-	video_current_level=*((int*)buf);
+	backlight_current_level=val;
+
+	if (ac_powered)
+		backlight_fullpower_level=val;
+	else
+		backlight_economy_level=val;
 
 	return store_conf_file();
+}
+
+int set_lcd_brightness(int val)
+{
+	int rc;
+
+	if (use_backlight==0) {
+		rc = set_acpi_video_level(val);
+	} else {
+		rc = set_backlight_video_level(val);
+	}
+
+	return rc;
 }
 
 int get_video_up_level()
 {
-	int v = video_current_level;
+	int v = use_backlight ? backlight_current_level : acpi_video_current_level;
 	int i;
+
+
+	/* A bug(?) exists on some screens that make it impossible to raise the backlight properly:
+
+	   $ backlight 80
+	   $ backlight
+	   brightness: 79
+	   $ backlight 75
+	   $ backlight
+	   brightness: 74
+
+	   This line therefore raises the backlight by two
+	*/
+	if (use_backlight && props.nlevels == 0 && v < 100) {
+		v++;
+	}
 
 	for (i=0;i<num_of_video_levels;i++)
 	{
@@ -259,8 +343,38 @@ int get_video_up_level()
 
 int get_video_down_level()
 {
-	int v = video_current_level;
+	int v = use_backlight ? backlight_current_level : acpi_video_current_level;
 	int i;
+
+	/* A bug(?) exists on some screens that make it impossible to decrease the backlight properly.
+
+	   For example, the only way to decrease from 80 to 79 is by
+	   either first increasing to 81 and setting backlight=80, or
+	   decreasing to 79 and setting backlight=80:
+
+	   $ backlight
+	   brightness: 80
+	   $ backlight 79
+	   $ backlight
+	   brightness: 78
+	   $ backlight
+	   brightness: 79
+
+	   Attempting to set backlight=80 (to actually set backlight=79)
+	   fails, as setting the current value of backlight does not
+	   change its value:
+
+	   $ backlight
+	   brightness: 80
+	   $ backlight 80
+	   $ backlight
+	   brightness: 80
+	   $ backlight 79
+	   $ backlight
+	   brightness: 78
+
+	   Therefore, this function, if using backlight(9), will decrease at a minimum level of 2.
+	*/
 
 	for (i=num_of_video_levels-1;i>=0;i--)
 	{
@@ -275,9 +389,8 @@ int get_video_down_level()
 	return -1;
 }
 
-int get_video_level()
+int get_saved_levels()
 {
-	int rc;
 	FILE *fp;
 	char buf[128];
 	char name[80];
@@ -303,12 +416,18 @@ int get_video_level()
 		value = strtol(p+1, &p, 10);
 		if (*p != '\n') continue;
 
-		if (strcmp(name,VIDEO_ECO_LEVEL)==0) {
-			video_economy_level=value;
-		} else if (strcmp(name,VIDEO_FUL_LEVEL)==0) {
-			video_fullpower_level=value;
-		} else if (strcmp(name,VIDEO_CUR_LEVEL)==0) {
-			video_current_level=value;
+		if (strcmp(name,ACPI_VIDEO_ECO_LEVEL)==0) {
+			acpi_video_economy_level=value;
+		} else if (strcmp(name,ACPI_VIDEO_FUL_LEVEL)==0) {
+			acpi_video_fullpower_level=value;
+		} else if (strcmp(name,ACPI_VIDEO_CUR_LEVEL)==0) {
+			acpi_video_current_level=value;
+		} else if (strcmp(name,BACKLIGHT_ECO_LEVEL)==0) {
+			backlight_economy_level=value;
+		} else if (strcmp(name,BACKLIGHT_FUL_LEVEL)==0) {
+			backlight_fullpower_level=value;
+		} else if (strcmp(name,BACKLIGHT_CUR_LEVEL)==0) {
+			backlight_current_level=value;
 		}
 	}
 
@@ -336,17 +455,17 @@ int get_ac_powered()
 	return 0;
 }
 
-int get_video_levels()
+int get_acpi_video_levels()
 {
 	int rc, *v, n;
 	int buf[32];
 	size_t buflen=sizeof(buf);
 
-	rc=sysctlbyname(VIDEO_LEVELS,
+	rc=sysctlbyname(ACPI_VIDEO_LEVELS,
 			(void*)buf, &buflen, NULL,0);
 	if (rc<0) {
 		fprintf(stderr,"sysctl %s : %s\n",
-			VIDEO_LEVELS,strerror(errno));
+			ACPI_VIDEO_LEVELS,strerror(errno));
 		return -1;
 	}
 
@@ -356,7 +475,7 @@ int get_video_levels()
 	v=(int*)realloc(video_levels,n*sizeof(int));
 	if (v==NULL)
 	{
-		fprintf(stderr,"failed to allocate %zu bytes memory\n",buflen);
+		fprintf(stderr,"failed to allocate %zu bytes memory\n",n*sizeof(int));
 		return -1;
 	}
 	memcpy(v,&buf[2],n*sizeof(int));
@@ -366,14 +485,72 @@ int get_video_levels()
 
     /* if conf_file is empty or not created,
        use default value */
-	if (video_economy_level < 0) {
-		video_economy_level = n > 3 ? v[3] : v[n];
+	if (acpi_video_economy_level < 0) {
+		acpi_video_economy_level = n > 3 ? v[3] : v[n];
 	}
-	if (video_fullpower_level < 0) {
-		video_fullpower_level = n > 3 ? v[3] : v[n];
+	if (acpi_video_fullpower_level < 0) {
+		acpi_video_fullpower_level = n > 3 ? v[3] : v[n];
 	}
 
 	return 0;
+}
+
+int get_backlight_video_levels()
+{
+	int i;
+
+	if (backlight_fd<0) {
+		fprintf(stderr,"open %s : %s\n",
+			backlight_device,strerror(errno));
+		return -1;
+	}
+
+	use_backlight=1;
+
+	if (ioctl(backlight_fd, BACKLIGHTGETSTATUS, &props) < 0) {
+		fprintf(stderr,"ioctl BACKLIGHTGETSTATUS : %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	if (props.nlevels != 0) {
+		num_of_video_levels=props.nlevels; // XXX: +1 for level=0?
+	} else {
+		/* XXX: some screens may not allow intervals of 1, allow intervals of 2 (and 0) */
+		num_of_video_levels = BACKLIGHTMAXLEVELS+1; // 0-100 inclusive
+	}
+
+	video_levels=(int*)realloc(video_levels,num_of_video_levels*sizeof(int));
+	if (video_levels==NULL)
+	{
+		fprintf(stderr,"failed to allocate %zu bytes memory\n",num_of_video_levels*sizeof(int));
+		return -1;
+	}
+
+	if (props.nlevels != 0) {
+		for (i=0;i<props.nlevels;i++) {
+			video_levels[i]=props.levels[i];
+		}
+	} else {
+		for (i=0;i<num_of_video_levels;i++) {
+			video_levels[i] = i;
+		}
+	}
+
+	if (backlight_economy_level < 0) {
+		backlight_economy_level = 60; // arbitrary value
+	}
+	if (backlight_fullpower_level < 0) {
+		backlight_fullpower_level = 100; // arbitrary value
+	}
+
+
+	return 0;
+}
+
+int get_video_levels()
+{
+	return (get_acpi_video_levels()==0 || get_backlight_video_levels()==0);
 }
 
 
@@ -388,6 +565,7 @@ int init_capsicum()
 #endif
 	cap_channel_t *ch_casper;
 	cap_rights_t conf_fd_rights;
+	cap_rights_t backlight_fd_rights;
 
 #ifdef HAVE_CAPSICUM_HELPERS_H
 	caph_cache_catpages();
@@ -418,6 +596,15 @@ int init_capsicum()
 		return -1;
 	}
 
+	/* limit backlight_device to read/write/ioctl XXX: also use cap_ioctls_limit */
+/*	cap_rights_init(&backlight_fd_rights, CAP_READ|CAP_IOCTL|CAP_FCNTL|CAP_WRITE);
+	if (cap_rights_limit(backlight_fd, &backlight_fd_rights) < 0) {
+		fprintf(stderr,"cap_rights_limit() failed\n");
+		cap_close(ch_casper);
+		return -1;
+	}
+*/
+
 	/* open channel to casper sysctl */
 	ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
 	if (ch_sysctl == NULL) {
@@ -428,10 +615,10 @@ int init_capsicum()
 
 #ifdef HAVE_CAP_SYSCTL_LIMIT_NAME
 	limits = cap_sysctl_limit_init(ch_sysctl);
-	cap_sysctl_limit_name(limits, VIDEO_LEVELS, CAP_SYSCTL_READ);
-	cap_sysctl_limit_name(limits, VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
-	cap_sysctl_limit_name(limits, VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
-	cap_sysctl_limit_name(limits, VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, ACPI_VIDEO_LEVELS, CAP_SYSCTL_READ);
+	cap_sysctl_limit_name(limits, ACPI_VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, ACPI_VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
+	cap_sysctl_limit_name(limits, ACPI_VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
 	cap_sysctl_limit_name(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
 	cap_sysctl_limit_name(limits, AC_POWER, CAP_SYSCTL_READ);
 
@@ -445,10 +632,10 @@ int init_capsicum()
 #else
 	/* limit sysctl names as following */
 	limits = nvlist_create(0);
-	nvlist_add_number(limits, VIDEO_LEVELS, CAP_SYSCTL_READ);
-	nvlist_add_number(limits, VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
-	nvlist_add_number(limits, VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, ACPI_VIDEO_LEVELS, CAP_SYSCTL_READ);
+	nvlist_add_number(limits, ACPI_VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, ACPI_VIDEO_FUL_LEVEL, CAP_SYSCTL_RDWR);
+	nvlist_add_number(limits, ACPI_VIDEO_CUR_LEVEL, CAP_SYSCTL_RDWR);
 	nvlist_add_number(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
 	nvlist_add_number(limits, AC_POWER, CAP_SYSCTL_READ);
 
@@ -471,10 +658,24 @@ int init_capsicum()
 }
 #endif
 
+void usage(const char *prog)
+{
+	printf("usage: %s [video|key] [up|down]\n",prog);
+	printf("\nChange video or keyboard backlight more or less bright.\n");
+}
+
+void cleanup()
+{
+	if (backlight_fd >= 0)
+		close(backlight_fd);
+
+	close(conf_fd);
+}
 
 int main(int argc, char *argv[])
 {
 	int d;
+	int rc = 0;
 
 	conf_fd=open(conf_filename, O_CREAT|O_RDWR, 0600);
 	if (conf_fd<0)
@@ -483,35 +684,63 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 
+	/* may fail */
+	backlight_fd = open(backlight_device, O_RDWR);
+
 #ifdef USE_CAPSICUM
-	if (init_capsicum()<0) return 1;
+	if (init_capsicum()<0){
+		cleanup();
+		return 1;
+	}
 #endif
 
 	/* initialize */
-	if (get_ac_powered()<0) return 1;
-	if (get_video_level()<0) return 1;
+	if (get_ac_powered()<0 || get_saved_levels()<0) {
+		cleanup();
+		return 1;
+	}
 
 	if (argc>2) {
-		if (strcmp(argv[1],"video")==0||
-		    strcmp(argv[1],"lcd")==0)
+		if ((strcmp(argv[1],"video")==0||
+		    strcmp(argv[1],"lcd")==0))
 		{
-			if (get_video_levels()<0) return 1;
-			if (strcmp(argv[2],"up")==0||
-			    strcmp(argv[2],"u")==0)
-			{
-				d=get_video_up_level();
-				set_video_level(d);
+			if (get_video_levels()<0) {
+				cleanup();
+				return 1;
 			}
-			if (strcmp(argv[2],"down")==0||
-			    strcmp(argv[2],"d")==0)
-			{
-				d=get_video_down_level();
-				set_video_level(d);
-			}
+
+			/* acpi: use the previously saved brightness */
 			if (strcmp(argv[2],"acpi")==0||
 			    strcmp(argv[2],"a")==0)
 			{
-				set_acpi_video_level();
+				if (use_backlight==0) {
+					d = ac_powered ? acpi_video_fullpower_level : acpi_video_economy_level;
+				} else {
+					d = ac_powered ? backlight_fullpower_level : backlight_economy_level;
+				}
+				rc = set_lcd_brightness(d);
+			} else { /* human acmtl call: use current brightness */
+				if (use_backlight==0) {
+					set_acpi_video_current_level();
+				} else {
+					backlight_current_level=props.brightness;
+				}
+
+				if (strcmp(argv[2],"up")==0||
+				    strcmp(argv[2],"u")==0)
+				{
+					d=get_video_up_level();
+					rc = set_lcd_brightness(d);
+				} else if (strcmp(argv[2],"down")==0||
+				    strcmp(argv[2],"d")==0)
+				{
+					d=get_video_down_level();
+					rc = set_lcd_brightness(d);
+				} else {
+					usage(argv[0]);
+					rc = -1;
+				}
+
 			}
 		}
 		if (strcmp(argv[1],"kb")==0||
@@ -520,25 +749,34 @@ int main(int argc, char *argv[])
 		    strcmp(argv[1],"key")==0)
 		{
 			d=get_keyboard_backlight_level();
-			if (d<0) return 1;
+			if (d<0) {
+				cleanup();
+				return 1;
+			}
+
 			if (strcmp(argv[2],"up")==0||
 			    strcmp(argv[2],"u")==0)
 			{
 				d+=10;
 				if (d>100) d=100;
-			}
-			if (strcmp(argv[2],"down")==0||
+				rc = set_keyboard_backlight_level(d);
+			} else if (strcmp(argv[2],"down")==0||
 			    strcmp(argv[2],"d")==0)
 			{
 				d-=10;
 				if (d<0) d=0;
+				rc = set_keyboard_backlight_level(d);
+			} else {
+				usage(argv[0]);
+				rc = -1;
 			}
-			set_keyboard_backlight_level(d);
 		}
 	} else {
-		printf("usage: %s [video|key] [up|down]\n",argv[0]);
-		printf("\nChange video or keyboard backlight more or less bright.\n");
+		usage(argv[0]);
+		rc = -1;
 	}
 
-	return 0;
+	cleanup();
+
+	return (rc<0?1:0);
 }
