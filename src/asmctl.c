@@ -30,9 +30,9 @@
  *
  * This command may require the following sysctl variables:
  *
- *  hw.acpi.video.lcd0.*    (acpi_video(4))
- *  hw.asmc.0.light.control (asmc(4))
- *  hw.acpi.acline	  (acpi(4))
+ *  hw.acpi.video.lcd0.*	(acpi_video(4))
+ *  hw.asmc.0.light.control	(asmc(4))
+ *  hw.acpi.acline		(acpi(4))
  *
  */
 
@@ -89,31 +89,31 @@ int num_of_video_levels = 0;
 /* Array of video level values (either backlight(9) or acpi_video) */
 int *video_levels = NULL;
 
-/* hw.acpi.video backlight current level (one of video_levels)*/
+/* hw.acpi.video backlight current level (one of video_levels) */
 int acpi_video_current_level;
 
-/* hw.acpi.video  backlight economy level (one of video_levels)*/
+/* hw.acpi.video  backlight economy level (one of video_levels) */
 int acpi_video_economy_level = -1;
 
-/* hw.acpi.video backlight fullpower level (one of video_levels)*/
+/* hw.acpi.video backlight fullpower level (one of video_levels) */
 int acpi_video_fullpower_level = -1;
 
-/* Backlight(9) current level (one of video_levels)*/
+/* Backlight(9) current level (one of video_levels) */
 int backlight_current_level;
 
-/* Backlight(9) economy level (one of video_levels)*/
+/* Backlight(9) economy level (one of video_levels) */
 int backlight_economy_level = -1;
 
-/* Backlight(9) fullpower level level (one of video_levels)*/
+/* Backlight(9) fullpower level level (one of video_levels) */
 int backlight_fullpower_level = -1;
 
 /* set 1 if AC powered else 0 */
 int ac_powered = 0;
 
-/* set 1 if backlight(9) instead of hw.acpi.video*/
+/* set 1 if backlight(9) instead of hw.acpi.video */
 int use_backlight = 0;
 
-/* file name of default backlight device*/
+/* file name of default backlight device */
 static char *backlight_device = "/dev/backlight/backlight0";
 
 /* file name to save state */
@@ -372,7 +372,16 @@ int get_video_down_level() {
 
 	   Therefore, this function, if using backlight(9), will decrease at a
 	   minimum level of 2.
+
+	   The only way to set the backlight to truly dim is by setting
+	   backlight=0 when the backlight=1 is not previously set. The follow
+	   line assures that if backlight=2, it does not set backlight=1 but
+	   instead backlight=0.
 	*/
+
+	if (use_backlight && props.nlevels == 0 && v == 2) {
+		v--;
+	}
 
 	for (i = num_of_video_levels - 1; i >= 0; i--) {
 		if (video_levels[i] == v) {
