@@ -737,6 +737,7 @@ int main(int argc, char *argv[]) {
 					rc = -1;
 				}
 			}
+			free(video_levels);
 		}
 		if (strcmp(argv[1], "kb") == 0 || strcmp(argv[1], "kbd") == 0 ||
 		    strcmp(argv[1], "keyboard") == 0 ||
