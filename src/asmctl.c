@@ -81,7 +81,7 @@
 #define AC_POWER "hw.acpi.acline"
 
 /* Keyboard backlight current level (0-100) */
-int kb_current_level;
+int kb_current_level = -1;
 
 /* Number of video levels (either backlight(9) or acpi_video) */
 int num_of_video_levels = 0;
@@ -300,7 +300,8 @@ int set_backlight_video_level(int val) {
 int set_lcd_brightness(int val) {
 	int rc;
 
-	rc = use_backlight ? set_backlight_video_level(val) : set_acpi_video_level(val);
+	rc = use_backlight ? set_backlight_video_level(val)
+			   : set_acpi_video_level(val);
 
 	return rc;
 }
@@ -440,6 +441,8 @@ int get_saved_levels() {
 			backlight_fullpower_level = value;
 		} else if (strcmp(name, BACKLIGHT_CUR_LEVEL) == 0) {
 			backlight_current_level = value;
+		} else if (strcmp(name, KB_CUR_LEVEL) == 0) {
+			kb_current_level = value;
 		}
 	}
 
@@ -609,8 +612,8 @@ int init_capsicum() {
 
 	/* limit conf_fd to read/write/seek/fcntl/ftruncate */
 	/* fcntl is used in fdopen(3) */
-	cap_rights_init(&conf_fd_rights,
-			CAP_READ | CAP_WRITE | CAP_SEEK | CAP_FCNTL | CAP_FTRUNCATE);
+	cap_rights_init(&conf_fd_rights, CAP_READ | CAP_WRITE | CAP_SEEK |
+					     CAP_FCNTL | CAP_FTRUNCATE);
 	rc = cap_rights_limit(conf_fd, &conf_fd_rights);
 	if (rc < 0) {
 		fprintf(stderr, "cap_rights_limit() failed\n");
@@ -628,7 +631,8 @@ int init_capsicum() {
 	}
 
 	/* limit allowed backlight_fd ioctl commands */
-	rc = cap_ioctls_limit(backlight_fd, backlightcmds, nitems(backlightcmds));
+	rc = cap_ioctls_limit(backlight_fd, backlightcmds,
+			      nitems(backlightcmds));
 	if (rc < 0) {
 		fprintf(stderr, "cap_ioctls_limit() failed\n");
 		cap_close(ch_casper);
@@ -748,10 +752,14 @@ int main(int argc, char *argv[]) {
 						: backlight_economy_level;
 				}
 				rc = set_lcd_brightness(d);
-			} else { /* human asmctl call: use current brightness */
+			} else {
+				/* human asmctl call: use current brightness */
 				if (use_backlight == 0) {
-					/* may be -1, will fail get_video_up_level/get_video_down_level */
-					acpi_video_current_level=get_acpi_video_level();
+					/* may be -1, will fail
+					 * get_video_up_level/get_video_down_level
+					 */
+					acpi_video_current_level =
+					    get_acpi_video_level();
 				} else {
 					backlight_current_level =
 					    props.brightness;
@@ -775,27 +783,40 @@ int main(int argc, char *argv[]) {
 		if (strcmp(argv[1], "kb") == 0 || strcmp(argv[1], "kbd") == 0 ||
 		    strcmp(argv[1], "keyboard") == 0 ||
 		    strcmp(argv[1], "key") == 0) {
-			d = get_keyboard_backlight_level();
-			if (d < 0) {
-				cleanup();
-				return 1;
-			}
-
-			if (strcmp(argv[2], "up") == 0 ||
-			    strcmp(argv[2], "u") == 0) {
-				d += 10;
-				if (d > 100)
-					d = 100;
-				rc = set_keyboard_backlight_level(d);
-			} else if (strcmp(argv[2], "down") == 0 ||
-				   strcmp(argv[2], "d") == 0) {
-				d -= 10;
-				if (d < 0)
-					d = 0;
-				rc = set_keyboard_backlight_level(d);
+			/* acpi: use the previously saved brightness */
+			if (strcmp(argv[2], "acpi") == 0 ||
+			    strcmp(argv[2], "a") == 0) {
+				if (kb_current_level < 0) {
+					cleanup();
+					return 1;
+				}
+				rc = set_keyboard_backlight_level(
+				    kb_current_level);
 			} else {
-				usage(argv[0]);
-				rc = -1;
+
+				d = get_keyboard_backlight_level();
+				if (d < 0) {
+					cleanup();
+					return 1;
+				}
+
+				/* human asmctl call: use current brightness */
+				if (strcmp(argv[2], "up") == 0 ||
+				    strcmp(argv[2], "u") == 0) {
+					d += 10;
+					if (d > 100)
+						d = 100;
+					rc = set_keyboard_backlight_level(d);
+				} else if (strcmp(argv[2], "down") == 0 ||
+					   strcmp(argv[2], "d") == 0) {
+					d -= 10;
+					if (d < 0)
+						d = 0;
+					rc = set_keyboard_backlight_level(d);
+				} else {
+					usage(argv[0]);
+					rc = -1;
+				}
 			}
 		}
 	} else {
