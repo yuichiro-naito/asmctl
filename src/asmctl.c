@@ -748,7 +748,7 @@ int main(int argc, char *argv[]) {
 						: backlight_economy_level;
 				}
 				rc = set_lcd_brightness(d);
-			} else { /* human acmtl call: use current brightness */
+			} else { /* human asmctl call: use current brightness */
 				if (use_backlight == 0) {
 					/* may be -1, will fail get_video_up_level/get_video_down_level */
 					acpi_video_current_level=get_acpi_video_level();
