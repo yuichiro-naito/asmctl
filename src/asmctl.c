@@ -472,44 +472,69 @@ int get_ac_powered() {
 }
 
 int get_acpi_video_levels() {
-	int rc, *v, n;
-	int buf[32];
-	size_t buflen = sizeof(buf);
+	int *buf, rc, *v, n;
+	size_t buflen = -1;
 
-	rc = sysctlbyname(ACPI_VIDEO_LEVELS, (void *)buf, &buflen, NULL, 0);
+	rc = sysctlbyname(ACPI_VIDEO_LEVELS, NULL, &buflen, NULL, 0);
 	if (rc < 0) {
 		fprintf(stderr, "sysctl %s : %s\n", ACPI_VIDEO_LEVELS,
 			strerror(errno));
 		return rc;
 	}
 
-	n = buflen / sizeof(int);
-	if (n < 3) {
-		fprintf(stderr, "fewer than 3 video levels retrieved\n");
+	if (buflen < 1) {
+		fprintf(stderr, "failed to retrieve %s length: %zu\n",
+			ACPI_VIDEO_LEVELS, buflen);
 		return -1;
 	}
 
-	/* ignore first two elements */
+	buf = (int *)malloc(buflen);
+	if (buf == NULL) {
+		fprintf(stderr, "failed to allocate %lu bytes memory\n",
+			buflen);
+		return -1;
+	}
+
+	rc = sysctlbyname(ACPI_VIDEO_LEVELS, (void *)buf, &buflen, NULL, 0);
+	if (rc < 0) {
+		fprintf(stderr, "sysctl %s : %s\n", ACPI_VIDEO_LEVELS,
+			strerror(errno));
+		free(buf);
+		return rc;
+	}
+
+	n = buflen / sizeof(int);
+	if (n < 3) {
+		fprintf(stderr, "fewer than 3 video levels retrieved\n");
+		free(buf);
+		return -1;
+	}
+
+	/* if conf_file is empty or not created,
+	   use default value */
+	if (acpi_video_fullpower_level < 0) {
+		 acpi_video_fullpower_level = (int)buf[0];
+	}
+	if (acpi_video_economy_level < 0) {
+		acpi_video_economy_level = (int)buf[1];
+	}
+
+	/* ignore first two elements for range */
 	n -= 2;
 	v = (int *)realloc(video_levels, n * sizeof(int));
 	if (v == NULL) {
 		fprintf(stderr, "failed to allocate %zu bytes memory\n",
 			n * sizeof(int));
+		free(buf);
 		return -1;
 	}
+
 	memcpy(v, &buf[2], n * sizeof(int));
 
 	num_of_video_levels = n;
 	video_levels = v;
 
-	/* if conf_file is empty or not created,
-	   use default value */
-	if (acpi_video_economy_level < 0) {
-		acpi_video_economy_level = n > 3 ? v[3] : v[n];
-	}
-	if (acpi_video_fullpower_level < 0) {
-		acpi_video_fullpower_level = n > 3 ? v[3] : v[n];
-	}
+	free(buf);
 
 	return rc;
 }
@@ -570,6 +595,14 @@ int get_backlight_video_levels() {
 int get_video_levels() {
 	return (get_acpi_video_levels() == 0 ||
 		get_backlight_video_levels() == 0);
+}
+
+int compare_video_levels(const void *a, const void *b) {
+	return (*(int*)a - *(int*)b);
+}
+
+void sort_video_levels() {
+	qsort(video_levels, num_of_video_levels, sizeof(int), compare_video_levels);
 }
 
 #ifdef USE_CAPSICUM
@@ -736,6 +769,8 @@ int main(int argc, char *argv[]) {
 				cleanup();
 				return 1;
 			}
+
+			sort_video_levels();
 
 			/* acpi: use the previously saved brightness */
 			if (strcmp(argv[2], "acpi") == 0 ||
