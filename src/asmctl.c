@@ -536,8 +536,6 @@ int get_backlight_video_levels() {
 	if (props.nlevels != 0) {
 		num_of_video_levels = props.nlevels; // XXX: +1 for level=0?
 	} else {
-		/* XXX: some screens may not allow intervals of 1, allow
-		 * intervals of 2 (and 0) */
 		num_of_video_levels = BACKLIGHTMAXLEVELS + 1; // 0-100 inclusive
 	}
 
