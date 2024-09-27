@@ -3,4 +3,5 @@ notify 20 {
 	match "subsystem"	"ACAD";
 	action "/etc/rc.d/power_profile $notify";
 	action "%%BINDIR%%/asmctl video acpi";
+	action "%%BINDIR%%/asmctl key acpi";
 };

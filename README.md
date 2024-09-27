@@ -74,7 +74,7 @@ One is for ac powered and the other is for battery powered.
 Asmctl adjusts these two values relies on acpi ac power status.
 
 ```/usr/local/etc/devd/asmctl.conf``` makes FreeBSD devd
-triggering ```asmctl video acpi```.
+triggering ```asmctl video acpi``` and ```asmctl key acpi```.
 
 ## SECURITY
 
