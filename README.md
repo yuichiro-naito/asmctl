@@ -8,7 +8,7 @@ which controls keyboard backlight and LCD backlight.
 
 The asmctl command tries to use backlight(9) device at first.
 If it's not available, use "hw.acpi.video.lcd0.*" sysctl value instead.
-The backlight(9) dirver is introduced by FreeBSD 13.0.
+The backlight(9) driver is introduced by FreeBSD 13.0.
 The backlight(9) overrides ACPI sysctl configuration while it's working.
 The asmctl command will open the '/dev/backlight/backlight0' device file
 to see if the backlight(9) device is available.
