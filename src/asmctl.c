@@ -545,8 +545,6 @@ int get_backlight_video_levels() {
 	int rc;
 
 	if (backlight_fd < 0) {
-		fprintf(stderr, "open %s : %s\n", backlight_device,
-			strerror(errno));
 		return -1;
 	}
 
@@ -594,8 +592,8 @@ int get_backlight_video_levels() {
 }
 
 int get_video_levels() {
-	return (get_acpi_video_levels() == 0 ||
-		get_backlight_video_levels() == 0);
+	return (get_backlight_video_levels() < 0 &&
+		get_acpi_video_levels() < 0) ? -1 : 0;
 }
 
 int compare_video_levels(const void *a, const void *b) {
@@ -653,22 +651,24 @@ int init_capsicum() {
 		return rc;
 	}
 
-	/* limit backlight_fd to ioctl */
-	cap_rights_init(&backlight_fd_rights, CAP_IOCTL);
-	rc = cap_rights_limit(backlight_fd, &backlight_fd_rights);
-	if (rc < 0) {
-		fprintf(stderr, "cap_rights_limit() failed\n");
-		cap_close(ch_casper);
-		return rc;
-	}
+	if (backlight_fd >= 0) {
+		/* limit backlight_fd to ioctl */
+		cap_rights_init(&backlight_fd_rights, CAP_IOCTL);
+		rc = cap_rights_limit(backlight_fd, &backlight_fd_rights);
+		if (rc < 0) {
+			fprintf(stderr, "cap_rights_limit() failed\n");
+			cap_close(ch_casper);
+			return rc;
+		}
 
-	/* limit allowed backlight_fd ioctl commands */
-	rc = cap_ioctls_limit(backlight_fd, backlightcmds,
-			      nitems(backlightcmds));
-	if (rc < 0) {
-		fprintf(stderr, "cap_ioctls_limit() failed\n");
-		cap_close(ch_casper);
-		return rc;
+		/* limit allowed backlight_fd ioctl commands */
+		rc = cap_ioctls_limit(backlight_fd, backlightcmds,
+				      nitems(backlightcmds));
+		if (rc < 0) {
+			fprintf(stderr, "cap_ioctls_limit() failed\n");
+			cap_close(ch_casper);
+			return rc;
+		}
 	}
 
 	/* open channel to casper sysctl */
@@ -767,6 +767,7 @@ int main(int argc, char *argv[]) {
 		if ((strcmp(argv[1], "video") == 0 ||
 		     strcmp(argv[1], "lcd") == 0)) {
 			if (get_video_levels() < 0) {
+				fprintf(stderr, "failed to get video levels\n");
 				cleanup();
 				return 1;
 			}
