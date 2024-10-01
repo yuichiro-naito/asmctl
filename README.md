@@ -4,8 +4,18 @@ Apple System Management Controller
 Asmctl is a command line tool for Apple System Management Controller,
 which controls keyboard backlight and LCD backlight.
 
-Asmctl uses sysctl variables of dev.asmc.0.* and hw.acpi.video.lcd0.*
-which are provided by FreeBSD kernel.
+## LCD backlight
+
+The asmctl command tries to use backlight(9) device at first.
+If it's not available, use "hw.acpi.video.lcd0.*" sysctl value instead.
+The backlight(9) dirver is introduced by FreeBSD 13.0.
+The backlight(9) overrides ACPI sysctl configuration while it's working.
+The asmctl command will open the '/dev/backlight/backlight0' device file
+to see if the backlight(9) device is available.
+
+## Keyboard backlight
+
+The asmctl uses "dev.asmc.0.*" sysctl values to configure the keyboard backlight.
 
 
 ## REQUIREMENTS

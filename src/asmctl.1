@@ -13,11 +13,16 @@
 .Sh DESCRIPTION
 The
 .Nm
-command controls LCD backlight and keyboard backlight
-by setting following sysctl(8) variables.
+command controls LCD backlight and keyboard backlight.
 
-.Dl hw.acpi.video.lcd0.brightness
-.Dl dev.asmc.0.light.control
+The LCD backlight is configured through the backlight(9) device driver.
+If the backlight(9) is not available, changes the
+.Sq hw.acpi.video.lcd0.brightness
+sysctl value to configure.
+
+The keyboard backlight is configured through the
+.Sq dev.asmc.0.light.control
+sysctl value.
 
 .Sh OPTIONS
 .Bl -tag -width indent
@@ -31,6 +36,8 @@ Adjust the LCD backlight brightness based on whether the laptop is on AC power o
 Brighten the keyboard backlight.
 .It Ar key down
 Dim the keyboard backlight.
+.It Ar key acpi
+Adjust the keyborad backlight brightness based on whether the laptop is on AC power or battery power.  Relies on acpi status.
 .El
 
 .Sh FILES
