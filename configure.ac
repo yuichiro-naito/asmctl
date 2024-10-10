@@ -14,13 +14,15 @@ AC_PROG_SED
 AC_PROG_INSTALL
 
 # Checks for libraries.
+AC_CHECK_LIB(nv, FreeBSD_nvlist_create)
 AC_CHECK_LIB(nv, nvlist_create)
 AC_CHECK_LIB(casper, cap_init)
 AC_CHECK_LIB(cap_sysctl, cap_sysctlbyname)
 
 # Checks for header files.
-AC_CHECK_HEADERS([stdlib.h string.h])
+AC_CHECK_HEADERS([unistd.h stdlib.h string.h fcntl.h nl_types.h])
 AC_CHECK_HEADERS([sys/nv.h sys/capsicum.h libcasper.h capsicum_helpers.h])
+AC_CHECK_HEADERS([sys/ioctl.h])
 
 # Check for functions.
 AC_CHECK_FUNCS([cap_sysctl_limit_name])
@@ -30,7 +32,8 @@ AC_TYPE_SIZE_T
 
 # Checks for library functions.
 AC_FUNC_REALLOC
-AC_CHECK_FUNCS([strerror])
+AC_FUNC_MALLOC
+AC_CHECK_FUNCS([strchr strtol strerror ftruncate])
 
 AC_CONFIG_FILES([Makefile])
 AC_OUTPUT

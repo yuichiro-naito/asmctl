@@ -3,38 +3,54 @@
 /* Define to 1 if you have the <capsicum_helpers.h> header file. */
 #undef HAVE_CAPSICUM_HELPERS_H
 
-/* Define to 1 if you have the `cap_sysctl_limit_name' function. */
+/* Define to 1 if you have the 'cap_sysctl_limit_name' function. */
 #undef HAVE_CAP_SYSCTL_LIMIT_NAME
+
+/* Define to 1 if you have the <fcntl.h> header file. */
+#undef HAVE_FCNTL_H
+
+/* Define to 1 if you have the 'ftruncate' function. */
+#undef HAVE_FTRUNCATE
 
 /* Define to 1 if you have the <inttypes.h> header file. */
 #undef HAVE_INTTYPES_H
 
-/* Define to 1 if you have the `cap_sysctl' library (-lcap_sysctl). */
+/* Define to 1 if you have the 'cap_sysctl' library (-lcap_sysctl). */
 #undef HAVE_LIBCAP_SYSCTL
 
-/* Define to 1 if you have the `casper' library (-lcasper). */
+/* Define to 1 if you have the 'casper' library (-lcasper). */
 #undef HAVE_LIBCASPER
 
 /* Define to 1 if you have the <libcasper.h> header file. */
 #undef HAVE_LIBCASPER_H
 
-/* Define to 1 if you have the `nv' library (-lnv). */
+/* Define to 1 if you have the 'nv' library (-lnv). */
 #undef HAVE_LIBNV
 
-/* Define to 1 if you have the <memory.h> header file. */
-#undef HAVE_MEMORY_H
+/* Define to 1 if your system has a GNU libc compatible 'malloc' function, and
+   to 0 otherwise. */
+#undef HAVE_MALLOC
 
-/* Define to 1 if your system has a GNU libc compatible `realloc' function,
+/* Define to 1 if you have the <nl_types.h> header file. */
+#undef HAVE_NL_TYPES_H
+
+/* Define to 1 if your system has a GNU libc compatible 'realloc' function,
    and to 0 otherwise. */
 #undef HAVE_REALLOC
 
 /* Define to 1 if you have the <stdint.h> header file. */
 #undef HAVE_STDINT_H
 
+/* Define to 1 if you have the <stdio.h> header file. */
+#undef HAVE_STDIO_H
+
 /* Define to 1 if you have the <stdlib.h> header file. */
 #undef HAVE_STDLIB_H
 
-/* Define to 1 if you have the `strerror' function. */
+/* Define to 1 if you have the 'strchr' function. */
+#undef HAVE_STRCHR
+
+/* Define to 1 if you have the 'strerror' function. */
 #undef HAVE_STRERROR
 
 /* Define to 1 if you have the <strings.h> header file. */
@@ -43,8 +59,14 @@
 /* Define to 1 if you have the <string.h> header file. */
 #undef HAVE_STRING_H
 
+/* Define to 1 if you have the 'strtol' function. */
+#undef HAVE_STRTOL
+
 /* Define to 1 if you have the <sys/capsicum.h> header file. */
 #undef HAVE_SYS_CAPSICUM_H
+
+/* Define to 1 if you have the <sys/ioctl.h> header file. */
+#undef HAVE_SYS_IOCTL_H
 
 /* Define to 1 if you have the <sys/nv.h> header file. */
 #undef HAVE_SYS_NV_H
@@ -76,11 +98,16 @@
 /* Define to the version of this package. */
 #undef PACKAGE_VERSION
 
-/* Define to 1 if you have the ANSI C header files. */
+/* Define to 1 if all of the C89 standard headers exist (not just the ones
+   required in a freestanding environment). This macro is provided for
+   backward compatibility; new code need not use it. */
 #undef STDC_HEADERS
+
+/* Define to rpl_malloc if the replacement function should be used. */
+#undef malloc
 
 /* Define to rpl_realloc if the replacement function should be used. */
 #undef realloc
 
-/* Define to `unsigned int' if <sys/types.h> does not define. */
+/* Define as 'unsigned int' if <stddef.h> doesn't define. */
 #undef size_t
