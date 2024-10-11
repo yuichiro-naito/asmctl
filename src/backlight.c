@@ -26,20 +26,97 @@
  *
  */
 
+#include <errno.h>
+#include <fcntl.h>
+#include <stdlib.h>
+#include <unistd.h>
+#include <string.h>
+#include <sys/backlight.h>
+#include <sys/ioctl.h>
+
 #include "asmctl.h"
 
+#define BACKLIGHT_ECO_LEVEL "backlight_economy_level"
+#define BACKLIGHT_FUL_LEVEL "backlight_full_level"
+#define BACKLIGHT_CUR_LEVEL "backlight_current_level"
+
+/* file name of default backlight device */
+static char *backlight_device = "/dev/backlight/backlight0";
+
 struct backlight_context {
-	int bc_ac_powered;
-	int bc_battery_powered;
-	int bc_nvalues;
-	int *bc_values;
+	int bc_economy_level;
+	int bc_fullpower_level;
+	int bc_current_level;
+	int bc_fd;
+	bool bc_levels_are_generated;
+	int bc_nlevels;
+	int *bc_levels;
 };
+
+static int
+get_backlight_video_levels(struct backlight_context *c) {
+	int i;
+	/* struct containing backlight(9) properties */
+	struct backlight_props props;
+
+	if (c->bc_fd < 0)
+		return -1;
+
+	if (ioctl(c->bc_fd, BACKLIGHTGETSTATUS, &props) < 0) {
+		fprintf(stderr, "ioctl BACKLIGHTGETSTATUS : %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	c->bc_nlevels = (props.nlevels != 0) ?
+		props.nlevels : BACKLIGHTMAXLEVELS + 1;
+	c->bc_levels_are_generated = (props.nlevels == 0);
+
+	c->bc_levels = malloc(c->bc_nlevels * sizeof(int));
+	if (c->bc_levels == NULL) {
+		fprintf(stderr, "failed to allocate %zu bytes memory\n",
+			c->bc_nlevels * sizeof(int));
+		return -1;
+	}
+
+	if (props.nlevels != 0) {
+		for (i = 0; i < props.nlevels; i++)
+			c->bc_levels[i] = props.levels[i];
+	} else {
+		for (i = 0; i < c->bc_nlevels; i++)
+			c->bc_levels[i] = i;
+	}
+
+	if (c->bc_economy_level <= 0)
+		c->bc_economy_level = 60; // arbitrary value
+	if (c->bc_fullpower_level <= 0)
+		c->bc_fullpower_level = 100; // arbitrary value
+
+	return 0;
+}
 
 static int
 backlight_init(void *context)
 {
+	int fd;
 	struct backlight_context *c = context;
 
+	/* may fail */
+	if ((c->bc_fd = open(backlight_device, O_RDWR)) < 0)
+		return -1;
+
+	if (get_backlight_video_levels(c) < 0)
+		return -1;
+
+	return 0;
+}
+
+static int
+conf_get_int(nvlist_t *conf, const char *key, int *val)
+{
+	if (! nvlist_exists_number(conf, key))
+		return -1;
+	*val = nvlist_get_number(conf, key);
 	return 0;
 }
 
@@ -48,6 +125,11 @@ backlight_load_conf(void *context, nvlist_t *conf)
 {
 	struct backlight_context *c = context;
 
+	if (conf_get_int(conf, BACKLIGHT_ECO_LEVEL, &c->bc_economy_level) < 0 ||
+	    conf_get_int(conf, BACKLIGHT_FUL_LEVEL, &c->bc_fullpower_level) < 0 ||
+	    conf_get_int(conf, BACKLIGHT_CUR_LEVEL, &c->bc_current_level) < 0)
+		return -1;
+
 	return 0;
 }
 
@@ -55,6 +137,10 @@ static int
 backlight_save_conf(void *context, nvlist_t *conf)
 {
 	struct backlight_context *c = context;
+
+	nvlist_add_number(conf, BACKLIGHT_ECO_LEVEL, c->bc_economy_level);
+	nvlist_add_number(conf, BACKLIGHT_FUL_LEVEL, c->bc_fullpower_level);
+	nvlist_add_number(conf, BACKLIGHT_CUR_LEVEL, c->bc_current_level);
 
 	return 0;
 }
@@ -65,6 +151,25 @@ backlight_cap_set_rights(void *context, cap_sysctl_limit_t *limits);
 
 {
 	struct backlight_context *c = context;
+	cap_rights_t bc_fd_rights;
+	static const unsigned long backlightcmds[] = {BACKLIGHTUPDATESTATUS,
+						      BACKLIGHTGETSTATUS};
+
+	if (c->bc_fd == -1)
+ 		return 0;
+
+	/* limit bc_fd to ioctl */
+	cap_rights_init(&bc_fd_rights, CAP_IOCTL);
+	if (cap_rights_limit(c->bc_fd, &bc_fd_rights) < 0) {
+		fprintf(stderr, "cap_rights_limit() failed\n");
+		return -1;
+	}
+
+	/* limit allowed bc_fd ioctl commands */
+	if (cap_ioctls_limit(c->bc_fd, backlightcmds, nitems(backlightcmds)) < 0) {
+		fprintf(stderr, "cap_ioctls_limit() failed\n");
+		return -1;
+	}
 
 	return 0;
 }
@@ -75,6 +180,40 @@ backlight_cleanup(void *context)
 {
 	struct backlight_context *c = context;
 
+	if (c->bc_fd != -1) {
+		close(c->bc_fd);
+		c->bc_fd = -1;
+	}
+	free(c->bc_levels);
+
+	return 0;
+}
+
+static int
+set_backlight_video_level(struct backlight_context *c, int val) {
+	/* struct containing backlight(9) properties */
+	struct backlight_props props;
+
+	if (val < 0 || val > 100)
+		return -1;
+
+	props.brightness = val;
+
+	if (ioctl(c->bc_fd, BACKLIGHTUPDATESTATUS, &props) < 0) {
+		fprintf(stderr, "ioctl BACKLIGHTUPDATESTATUS : %s\n",
+			strerror(errno));
+		return -1;
+	}
+
+	printf("set backlight brightness: %d\n", val);
+
+	c->bc_current_level = val;
+
+	if (ac_powered)
+		c->bc_fullpower_level = val;
+	else
+		c->bc_economy_level = val;
+
 	return 0;
 }
 
@@ -82,24 +221,102 @@ static int
 backlight_event(void *context, int event)
 {
 	struct backlight_context *c = context;
+	int d = ac_powered ? c->bc_fullpower_level : c->bc_economy_level;
 
-	return 0;
+	return set_backlight_video_level(c, d);
 }
 
 static int
 backlight_up(void *context)
 {
 	struct backlight_context *c = context;
+	int i, v = c->bc_current_level;
 
-	return 0;
+	/* A bug(?) exists on some screens that make it impossible to raise the
+	   backlight properly:
+
+	   $ backlight 80
+	   $ backlight
+	   brightness: 79
+	   $ backlight 75
+	   $ backlight
+	   brightness: 74
+
+	   This line therefore raises the backlight by two
+	*/
+	if (c->bc_levels_are_generated && v < 100)
+		v++;
+
+	for (i = 0; i < c->bc_nlevels; i++) {
+		if (c->bc_levels[i] == v) {
+			v = (i == c->bc_nlevels - 1) ?
+				c->bc_levels[i] : c->bc_levels[i + 1];
+			break;
+		}
+	}
+	if (i == c->bc_nlevels)
+		return 0;
+	return set_backlight_video_level(c, v);
+
 }
 
 static int
 backlight_down(void *context)
 {
 	struct backlight_context *c = context;
+	int i, v = c->bc_current_level;
 
-	return 0;
+	/* A bug(?) exists on some screens that make it impossible to decrease
+	   the backlight properly.
+
+	   For example, the only way to decrease from 80 to 79 is by
+	   either first increasing to 81 and setting backlight=80, or
+	   decreasing to 79 and setting backlight=80:
+
+	   $ backlight
+	   brightness: 80
+	   $ backlight 79
+	   $ backlight
+	   brightness: 78
+	   $ backlight
+	   brightness: 79
+
+	   Attempting to set backlight=80 (to actually set backlight=79)
+	   fails, as setting the current value of backlight does not
+	   change its value:
+
+	   $ backlight
+	   brightness: 80
+	   $ backlight 80
+	   $ backlight
+	   brightness: 80
+	   $ backlight 79
+	   $ backlight
+	   brightness: 78
+
+	   Therefore, this function, if using backlight(9), will decrease at a
+	   minimum level of 2.
+
+	   The only way to set the backlight to truly dim is by setting
+	   backlight=0 when the backlight=1 is not previously set. The follow
+	   line assures that if backlight=2, it does not set backlight=1 but
+	   instead backlight=0.
+	*/
+
+	if (c->bc_levels_are_generated && v == 2) {
+		v--;
+	}
+
+	for (i = c->bc_nlevels - 1; i >= 0; i--) {
+		if (c->bc_levels[i] == v) {
+			v = (i == 0) ? c->bc_levels[0] : c->bc_levels[i - 1];
+			break;
+		}
+	}
+	if (i < 0)
+		return -1;
+
+	return set_backlight_video_level(c, v);
 }
 
 struct asmc_driver backlight_driver =
