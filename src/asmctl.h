@@ -56,10 +56,14 @@ enum CATEGORY {
 	KEYBOARD
 };
 
-#ifndef HAVE_CAP_SYSCTL_LIMIT_NAME
-#define cap_sysctl_limit_t  nvlist_t
-#define cap_sysctl_limit_name nvlist_add_number
-#define cap_limit_set cap_sysctl_limit
+#ifdef HAVE_CAP_SYSCTL_LIMIT_NAME
+#define cap_sysctl_limit_destroy(l)
+#else
+#define cap_sysctl_limit_init(ch)    nvlist_create(0)
+#define cap_sysctl_limit_t           nvlist_t
+#define cap_sysctl_limit_name        nvlist_add_number
+#define cap_sysctl_limit(l)          cap_limit_set(ch_sysctl, (l))
+#define cap_sysctl_limit_destroy(l)  nvlist_destroy((l))
 #endif
 
 struct asmc_driver {
