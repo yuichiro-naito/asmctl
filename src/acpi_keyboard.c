@@ -28,6 +28,7 @@
 
 #include <errno.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 #include "asmctl.h"
 
@@ -152,8 +153,9 @@ acpi_keyboard_up(void *context)
 		return -1;
 
 	d = MIN(c->akc_current_level + 10, 100);
-	if (set_keyboard_backlight_level(d) == 0)
-		c->akc_current_level = d;
+	if (set_keyboard_backlight_level(d) < 0)
+		return -1;
+	c->akc_current_level = d;
 
 	return 0;
 }
@@ -168,8 +170,9 @@ acpi_keyboard_down(void *context)
 		return -1;
 
 	d = MAX(c->akc_current_level - 10, 0);
-	if (set_keyboard_backlight_level(d) == 0)
-		c->akc_current_level = d;
+	if (set_keyboard_backlight_level(d) < 0)
+		return -1;
+	c->akc_current_level = d;
 
 	return 0;
 }

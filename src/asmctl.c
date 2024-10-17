@@ -67,6 +67,8 @@
 #endif
 #endif
 
+#include "asmctl.h"
+
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
 #define ACPI_VIDEO_LEVELS "hw.acpi.video.lcd0.levels"
@@ -135,6 +137,50 @@ cap_channel_t *ch_sysctl;
 	cap_sysctlbyname(ch_sysctl, (A), (B), (C), (D), (E))
 #endif
 
+
+struct asmc_driver *asmc_drivers[] = {
+	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
+};
+
+struct asmc_driver_context video_ctx, keyboard_ctx;
+
+static int
+lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
+{
+	struct asmc_driver *ad, **p;
+	void *c;
+
+	ARRAY_FOREACH(p, asmc_drivers) {
+		ad = *p;
+		if (ad->category == cat) {
+			if ((c = calloc(1, ad->ctx_size)) == NULL)
+				return -1;
+			if (ad->init(c) < 0) {
+				free(c);
+				continue;
+			}
+			*drv = ad;
+			*ctx = c;
+			return 0;
+		}
+	}
+	return -1;
+}
+
+int
+init_driver_context()
+{
+	if (lookup_driver(KEYBOARD, &keyboard_ctx.driver,
+			  &keyboard_ctx.context) < 0)
+		return -1;
+	if (lookup_driver(VIDEO, &video_ctx.driver, &video_ctx.context) < 0) {
+		ASMC_CLEANUP(&keyboard_ctx);
+		return -1;
+	}
+	return 0;
+}
+
+
 /**
    Store backlight levels to file.
    Write in sysctl.conf(5) format to restore by sysctl(1)
@@ -142,26 +188,49 @@ cap_channel_t *ch_sysctl;
 int store_conf_file() {
 	int rc;
 	FILE *fp;
+	nvlist_t *nl;
+	const char *name;
+	int type;
+	void *cookie;
+
+	if ((nl = nvlist_create(0)) == NULL) {
+		fprintf(stderr, "nvlist_create: %s\n", strerror(errno));
+		return -1;
+	}
+	ASMC_SAVE(&keyboard_ctx, nl);
+	ASMC_SAVE(&video_ctx, nl);
 
 	rc = ftruncate(conf_fd, 0);
 	if (rc < 0) {
 		fprintf(stderr, "ftruncate: %s\n", strerror(errno));
+		nvlist_destroy(nl);
 		return rc;
 	}
 
 	rc = lseek(conf_fd, 0, SEEK_SET);
 	if (rc < 0) {
 		fprintf(stderr, "lseek: %s\n", strerror(errno));
+		nvlist_destroy(nl);
 		return rc;
 	}
 
 	fp = fdopen(conf_fd, "w");
 	if (fp == NULL) {
 		fprintf(stderr, "can not write %s\n", conf_filename);
+		nvlist_destroy(nl);
 		return -1;
 	}
 	fprintf(fp, "# DO NOT EDIT MANUALLY!\n"
 		    "# This file is written by asmctl.\n");
+	cookie = NULL;
+	while ((name = nvlist_next(nl, &type, &cookie)) != NULL) {
+		if (type != NV_TYPE_NUMBER)
+			continue;
+		fprintf(fp, "%s=%d\n", name, (int)nvlist_get_number(nl, name));
+	}
+	nvlist_destroy(nl);
+
+#if 0
 	fprintf(fp, "%s=%d\n", ACPI_VIDEO_ECO_LEVEL, acpi_video_economy_level);
 	fprintf(fp, "%s=%d\n", ACPI_VIDEO_FUL_LEVEL,
 		acpi_video_fullpower_level);
@@ -170,6 +239,7 @@ int store_conf_file() {
 	fprintf(fp, "%s=%d\n", BACKLIGHT_FUL_LEVEL, backlight_fullpower_level);
 	fprintf(fp, "%s=%d\n", BACKLIGHT_CUR_LEVEL, backlight_current_level);
 	fprintf(fp, "%s=%d\n", KB_CUR_LEVEL, kb_current_level);
+#endif
 
 	rc = fdclose(fp, NULL);
 	if (rc < 0) {
@@ -403,6 +473,7 @@ int get_saved_levels() {
 	char *p;
 	int value, len;
 	int rc;
+	nvlist_t *nl;
 
 	rc = lseek(conf_fd, 0, SEEK_SET);
 
@@ -416,6 +487,13 @@ int get_saved_levels() {
 		fprintf(stderr, "can not read %s\n", conf_filename);
 		return -1;
 	}
+
+	if ((nl = nvlist_create(0)) == NULL) {
+		fprintf(stderr, "nvlist_create: %s\n", conf_filename);
+		fdclose(fp, NULL);
+		return -1;
+	}
+
 	while (fgets(buf, sizeof(buf), fp) != NULL) {
 		if (buf[0] == '#')
 			continue;
@@ -429,6 +507,7 @@ int get_saved_levels() {
 		value = strtol(p + 1, &p, 10);
 		if (*p != '\n')
 			continue;
+		nvlist_add_number(nl, name, value);
 
 		if (strcmp(name, ACPI_VIDEO_ECO_LEVEL) == 0) {
 			acpi_video_economy_level = value;
@@ -446,7 +525,9 @@ int get_saved_levels() {
 			kb_current_level = value;
 		}
 	}
-
+	ASMC_LOAD(&keyboard_ctx, nl);
+	ASMC_LOAD(&video_ctx, nl);
+	nvlist_destroy(nl);
 	rc = fdclose(fp, NULL);
 	if (rc < 0) {
 		fprintf(stderr, "can not write %s\n", conf_filename);
@@ -605,7 +686,7 @@ void sort_video_levels() {
 }
 
 #ifdef USE_CAPSICUM
-int init_capsicum() {
+int init_capsicum(struct asmc_driver_context *c) {
 	int rc;
 #ifdef HAVE_CAP_SYSCTL_LIMIT_NAME
 	void *limits;
@@ -696,6 +777,9 @@ int init_capsicum() {
 		cap_close(ch_sysctl);
 		return rc;
 	}
+
+	ASMC_SET_RIGHTS(c, ch_sysctl, limits);
+
 #else
 	/* limit sysctl names as following */
 	limits = nvlist_create(0);
@@ -730,16 +814,36 @@ void usage(const char *prog) {
 	printf("\nChange video or keyboard backlight more or less bright.\n");
 }
 
-void cleanup() {
-	if (backlight_fd >= 0)
-		close(backlight_fd);
-
+void cleanup()
+{
+	ASMC_CLEANUP(&keyboard_ctx);
+	ASMC_CLEANUP(&video_ctx);
 	close(conf_fd);
 }
 
 int main(int argc, char *argv[]) {
 	int d;
 	int rc = 0;
+	struct asmc_driver_context *ctx;
+
+	if (argc <= 2) {
+		usage(argv[0]);
+		return 1;
+	}
+
+	if (init_driver_context() < 0)
+		return 1;
+
+	if ((strcmp(argv[1], "video") == 0 || strcmp(argv[1], "lcd") == 0)) {
+		ctx = &video_ctx;
+	} else if (strcmp(argv[1], "kb") == 0 || strcmp(argv[1], "kbd") == 0 ||
+		 strcmp(argv[1], "keyboard") == 0 || strcmp(argv[1], "key") == 0)
+		ctx = &keyboard_ctx;
+	else {
+		usage(argv[0]);
+		cleanup();
+		return 1;
+	}
 
 	conf_fd = open(conf_filename, O_CREAT | O_RDWR, 0600);
 	if (conf_fd < 0) {
@@ -747,11 +851,8 @@ int main(int argc, char *argv[]) {
 		return 1;
 	}
 
-	/* may fail */
-	backlight_fd = open(backlight_device, O_RDWR);
-
 #ifdef USE_CAPSICUM
-	if (init_capsicum() < 0) {
+	if (init_capsicum(ctx) < 0) {
 		cleanup();
 		return 1;
 	}
@@ -762,6 +863,21 @@ int main(int argc, char *argv[]) {
 		cleanup();
 		return 1;
 	}
+
+	if (strcmp(argv[2], "acpi") == 0 || strcmp(argv[2], "a") == 0) {
+		ASMC_ACPI(ctx, ac_powered);
+	} else if (strcmp(argv[2], "up") == 0 ||
+		   strcmp(argv[2], "u") == 0) {
+		ASMC_UP(ctx);
+	} else if (strcmp(argv[2], "down") == 0 ||
+		   strcmp(argv[2], "d") == 0) {
+		ASMC_DOWN(ctx);
+	}
+
+	store_conf_file();
+
+	cleanup();
+
 
 	if (argc > 2) {
 		if ((strcmp(argv[1], "video") == 0 ||

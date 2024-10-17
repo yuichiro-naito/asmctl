@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <sys/param.h>
 #include <sys/sysctl.h>
 
 #include "asmctl.h"

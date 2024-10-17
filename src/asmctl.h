@@ -56,6 +56,12 @@ enum CATEGORY {
 	KEYBOARD
 };
 
+#ifndef HAVE_CAP_SYSCTL_LIMIT_NAME
+#define cap_sysctl_limit_t  nvlist_t
+#define cap_sysctl_limit_name nvlist_add_number
+#define cap_limit_set cap_sysctl_limit
+#endif
+
 struct asmc_driver {
 	char *name;
 	enum CATEGORY category;
@@ -71,6 +77,21 @@ struct asmc_driver {
 	int (*up)(void *);
 	int (*down)(void *);
 };
+
+struct asmc_driver_context {
+	struct asmc_driver *driver;
+	void *context;
+};
+
+#define ASMC_INIT(c)  (c)->driver->init((c)->context)
+#define ASMC_LOAD(c, v)  (c)->driver->load_conf((c)->context, (v))
+#define ASMC_SAVE(c, v)  (c)->driver->save_conf((c)->context, (v))
+#define ASMC_SET_RIGHTS(c, ch, l)  \
+	(c)->driver->cap_set_rights((c)->context, (ch), (l))
+#define ASMC_CLEANUP(c)  (c)->driver->cleanup((c)->context)
+#define ASMC_ACPI(c, v)  (c)->driver->acpi_event((c)->context, (v))
+#define ASMC_UP(c)  (c)->driver->up((c)->context)
+#define ASMC_DOWN(c)  (c)->driver->down((c)->context)
 
 extern struct asmc_driver acpi_video_driver;
 extern struct asmc_driver acpi_keyboard_driver;
