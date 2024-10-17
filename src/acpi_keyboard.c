@@ -65,7 +65,7 @@ static int
 acpi_keyboard_init(void *context)
 {
 	struct acpi_keyboard_context *c = context;
-
+	// nothing to do
 	return 0;
 }
 
