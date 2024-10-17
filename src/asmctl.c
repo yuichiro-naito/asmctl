@@ -62,12 +62,6 @@ static char *conf_filename = "/var/lib/asmctl.conf";
 /* file descriptor for the state file */
 int conf_fd = -1;
 
-#ifdef USE_CAPSICUM
-cap_channel_t *ch_sysctl;
-#define sysctlbyname(A, B, C, D, E)                                            \
-	cap_sysctlbyname(ch_sysctl, (A), (B), (C), (D), (E))
-#endif
-
 struct asmc_driver *asmc_drivers[] = {
 	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
 };
@@ -251,10 +245,13 @@ get_ac_powered()
 }
 
 #ifdef USE_CAPSICUM
+
+/* Global channel to the sysctl caspter.*/
+cap_channel_t *ch_sysctl;
+
 int
 init_capsicum(struct asmc_driver_context *c)
 {
-	int rc;
 	cap_sysctl_limit_t *limits;
 	cap_channel_t *ch_casper;
 	cap_rights_t conf_fd_rights;
@@ -266,37 +263,33 @@ init_capsicum(struct asmc_driver_context *c)
 #endif
 
 	/* Open a channel to casperd */
-	ch_casper = cap_init();
-	if (ch_casper == NULL) {
+	if ((ch_casper = cap_init()) == NULL) {
 		fprintf(stderr, "cap_init() failed\n");
 		return -1;
 	}
 
 	/* Enter capability mode */
-	rc = cap_enter();
-	if (rc < 0) {
+	if (cap_enter() < 0) {
 		fprintf(stderr, "capability is not supported\n");
 		cap_close(ch_casper);
-		return rc;
+		return -1;
 	}
 
 	/* limit conf_fd to read/write/seek/fcntl/ftruncate */
 	/* fcntl is used in fdopen(3) */
 	cap_rights_init(&conf_fd_rights, CAP_READ | CAP_WRITE | CAP_SEEK |
 					     CAP_FCNTL | CAP_FTRUNCATE);
-	rc = cap_rights_limit(conf_fd, &conf_fd_rights);
-	if (rc < 0) {
+	if (cap_rights_limit(conf_fd, &conf_fd_rights) < 0) {
 		fprintf(stderr, "cap_rights_limit() failed\n");
 		cap_close(ch_casper);
-		return rc;
+		return -1;
 	}
 
 	/* open channel to casper sysctl */
-	ch_sysctl = cap_service_open(ch_casper, "system.sysctl");
-	if (ch_sysctl == NULL) {
+	if ((ch_sysctl = cap_service_open(ch_casper, "system.sysctl")) == NULL) {
 		fprintf(stderr, "cap_service_open(\"system.sysctl\") failed\n");
 		cap_close(ch_casper);
-		return rc;
+		return -1;
 	}
 
 	limits = cap_sysctl_limit_init(ch_sysctl);
@@ -304,14 +297,13 @@ init_capsicum(struct asmc_driver_context *c)
 	ASMC_SET_RIGHTS(&keyboard_ctx, ch_sysctl, limits);
 	ASMC_SET_RIGHTS(&video_ctx, ch_sysctl, limits);
 
-	rc = cap_sysctl_limit(limits);
-	if (rc < 0) {
+	if (cap_sysctl_limit(limits) < 0) {
 		cap_sysctl_limit_destroy(limits);
 		fprintf(stderr, "cap_sysctl_limit failed %s\n",
 			strerror(errno));
 		cap_close(ch_casper);
 		cap_close(ch_sysctl);
-		return rc;
+		return -1;
 	}
 
 	cap_sysctl_limit_destroy(limits);
