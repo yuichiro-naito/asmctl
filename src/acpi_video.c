@@ -42,9 +42,6 @@
 #define ACPI_VIDEO_CUR_LEVEL "hw.acpi.video.lcd0.brightness"
 
 struct acpi_video_context {
-#ifdef USE_CAPSICUM
-	cap_channel_t *avc_sysctl;
-#endif
 	int avc_economy_level;
 	int avc_fullpower_level;
 	int avc_current_level;
@@ -89,12 +86,9 @@ acpi_video_save_conf(void *context, nvlist_t *cf)
 
 #ifdef USE_CAPSICUM
 static int
-acpi_video_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
-			  cap_sysctl_limit_t *limits)
+acpi_video_cap_set_rights(void *context, cap_sysctl_limit_t *limits)
 {
 	struct acpi_video_context *c = context;
-
-	c->avc_sysctl = ch_sysctl;
 
 	cap_sysctl_limit_name(limits, ACPI_VIDEO_LEVELS, CAP_SYSCTL_READ);
 	cap_sysctl_limit_name(limits, ACPI_VIDEO_ECO_LEVEL, CAP_SYSCTL_RDWR);

@@ -134,8 +134,7 @@ backlight_save_conf(void *context, nvlist_t *cf)
 
 #ifdef USE_CAPSICUM
 static int
-backlight_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
-			 cap_sysctl_limit_t *limits)
+backlight_cap_set_rights(void *context, cap_sysctl_limit_t *limits)
 {
 	struct backlight_context *c = context;
 	cap_rights_t bc_fd_rights;

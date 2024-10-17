@@ -79,7 +79,7 @@ struct asmc_driver {
 	int (*load_conf)(void *, nvlist_t *);
 	int (*save_conf)(void *, nvlist_t *);
 #ifdef USE_CAPSICUM
-	int (*cap_set_rights)(void *, cap_channel_t *, cap_sysctl_limit_t *);
+	int (*cap_set_rights)(void *, cap_sysctl_limit_t *);
 #endif
 	int (*cleanup)(void *);
 	int (*acpi_event)(void *);
@@ -95,8 +95,8 @@ struct asmc_driver_context {
 #define ASMC_INIT(c)  (c)->driver->init((c)->context)
 #define ASMC_LOAD(c, v)  (c)->driver->load_conf((c)->context, (v))
 #define ASMC_SAVE(c, v)  (c)->driver->save_conf((c)->context, (v))
-#define ASMC_SET_RIGHTS(c, ch, l)  \
-	(c)->driver->cap_set_rights((c)->context, (ch), (l))
+#define ASMC_SET_RIGHTS(c, l)  \
+	(c)->driver->cap_set_rights((c)->context, (l))
 #define ASMC_CLEANUP(c)  (c)->driver->cleanup((c)->context)
 #define ASMC_ACPI(c)  (c)->driver->acpi_event((c)->context)
 #define ASMC_UP(c)  (c)->driver->up((c)->context)

@@ -62,11 +62,32 @@ static char *conf_filename = "/var/lib/asmctl.conf";
 /* file descriptor for the state file */
 int conf_fd = -1;
 
+/*
+  Available drivers.
+ */
 struct asmc_driver *asmc_drivers[] = {
 	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
 };
 
+/*
+  Driver context for video & keyboard.
+ */
 struct asmc_driver_context video_ctx, keyboard_ctx;
+
+/*
+  Must be sorted by the name.
+ */
+static struct driver_type {
+	char *name;
+	struct asmc_driver_context *context;
+} type_table[] = {
+	{"kb", &keyboard_ctx},
+	{"kbd", &keyboard_ctx},
+	{"key", &keyboard_ctx},
+	{"keyboard", &keyboard_ctx},
+	{"lcd", &video_ctx},
+	{"video", &video_ctx},
+};
 
 static int
 lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
@@ -77,8 +98,12 @@ lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
 	ARRAY_FOREACH(p, asmc_drivers) {
 		ad = *p;
 		if (ad->category == cat) {
-			if ((c = calloc(1, ad->ctx_size)) == NULL)
+			if ((c = calloc(1, ad->ctx_size)) == NULL) {
+				fprintf(stderr,
+					"failed to allocate %zu bytes memory\n",
+					ad->ctx_size);
 				return -1;
+			}
 			if (ad->init(c) < 0) {
 				free(c);
 				continue;
@@ -294,8 +319,8 @@ init_capsicum(struct asmc_driver_context *c)
 
 	limits = cap_sysctl_limit_init(ch_sysctl);
 	cap_sysctl_limit_name(limits, AC_POWER, CAP_SYSCTL_READ);
-	ASMC_SET_RIGHTS(&keyboard_ctx, ch_sysctl, limits);
-	ASMC_SET_RIGHTS(&video_ctx, ch_sysctl, limits);
+	ASMC_SET_RIGHTS(&keyboard_ctx, limits);
+	ASMC_SET_RIGHTS(&video_ctx, limits);
 
 	if (cap_sysctl_limit(limits) < 0) {
 		cap_sysctl_limit_destroy(limits);
@@ -331,10 +356,19 @@ cleanup()
 		close(conf_fd);
 }
 
+static int
+type_compare(const void *a, const void *b)
+{
+	const char *s = a;
+	const struct driver_type *t = b;
+	return strcmp(s, t->name);
+}
+
 int
 main(int argc, char *argv[])
 {
 	int rc = 0;
+	struct driver_type *type;
 	struct asmc_driver_context *ctx;
 
 	if (argc <= 2) {
@@ -350,16 +384,13 @@ main(int argc, char *argv[])
 		goto err;
 	}
 
-	if ((strcmp(argv[1], "video") == 0 || strcmp(argv[1], "lcd") == 0)) {
-		ctx = &video_ctx;
-	} else if (strcmp(argv[1], "kb") == 0 || strcmp(argv[1], "kbd") == 0 ||
-		   strcmp(argv[1], "keyboard") == 0 ||
-		   strcmp(argv[1], "key") == 0)
-		ctx = &keyboard_ctx;
-	else {
+	type = bsearch(argv[1], type_table, nitems(type_table),
+		      sizeof(type_table[0]), type_compare);
+	if (type == NULL) {
 		usage(argv[0]);
 		goto err;
 	}
+	ctx = type->context;
 
 #ifdef USE_CAPSICUM
 	if (init_capsicum(ctx) < 0)

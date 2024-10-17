@@ -35,9 +35,6 @@
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
 struct acpi_keyboard_context {
-#ifdef USE_CAPSICUM
-	cap_channel_t *akc_sysctl;
-#endif
 	int akc_ac_powered;
 	int akc_battery_powered;
 	int akc_current_level;
@@ -91,12 +88,9 @@ acpi_keyboard_save_conf(void *context, nvlist_t *conf)
 
 #ifdef USE_CAPSICUM
 static int
-acpi_keyboard_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
-			     cap_sysctl_limit_t *limits)
+acpi_keyboard_cap_set_rights(void *context, cap_sysctl_limit_t *limits)
 {
 	struct acpi_keyboard_context *c = context;
-
-	c->akc_sysctl = ch_sysctl;
 
 	cap_sysctl_limit_name(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
 
