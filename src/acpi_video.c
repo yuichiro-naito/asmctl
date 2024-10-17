@@ -63,8 +63,6 @@ acpi_video_init(void *context)
 	return 0;
 }
 
-int conf_get_int(nvlist_t *, const char *, int *);
-
 static int
 acpi_video_load_conf(void *context, nvlist_t *cf)
 {

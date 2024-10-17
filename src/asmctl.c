@@ -170,6 +170,15 @@ err:
 }
 
 int
+conf_get_int(nvlist_t *conf, const char *key, int *val)
+{
+	if (! nvlist_exists_number(conf, key))
+		return -1;
+	*val = nvlist_get_number(conf, key);
+	return 0;
+}
+
+int
 get_saved_levels()
 {
 	FILE *fp;
@@ -225,24 +234,26 @@ get_saved_levels()
 	return 0;
 }
 
-int get_ac_powered() {
-	int rc;
+int
+get_ac_powered()
+{
 	char buf[128];
 	size_t buflen = sizeof(buf);
 
-	rc = sysctlbyname(AC_POWER, buf, &buflen, NULL, 0);
-	if (rc < 0) {
+	if (sysctlbyname(AC_POWER, buf, &buflen, NULL, 0) < 0) {
 		fprintf(stderr, "sysctl %s : %s\n", AC_POWER, strerror(errno));
-		return rc;
+		return -1;
 	}
 
 	ac_powered = *((int *)buf);
 
-	return rc;
+	return 0;
 }
 
 #ifdef USE_CAPSICUM
-int init_capsicum(struct asmc_driver_context *c) {
+int
+init_capsicum(struct asmc_driver_context *c)
+{
 	int rc;
 	cap_sysctl_limit_t *limits;
 	cap_channel_t *ch_casper;
@@ -312,12 +323,15 @@ int init_capsicum(struct asmc_driver_context *c) {
 }
 #endif
 
-void usage(const char *prog) {
+void
+usage(const char *prog)
+{
 	printf("usage: %s [video|key] [up|down]\n", prog);
 	printf("\nChange video or keyboard backlight more or less bright.\n");
 }
 
-void cleanup()
+void
+cleanup()
 {
 	ASMC_CLEANUP(&keyboard_ctx);
 	ASMC_CLEANUP(&video_ctx);
@@ -325,7 +339,9 @@ void cleanup()
 		close(conf_fd);
 }
 
-int main(int argc, char *argv[]) {
+int
+main(int argc, char *argv[])
+{
 	int rc = 0;
 	struct asmc_driver_context *ctx;
 
@@ -363,7 +379,7 @@ int main(int argc, char *argv[]) {
 		goto err;
 
 	if (strcmp(argv[2], "acpi") == 0 || strcmp(argv[2], "a") == 0) {
-		ASMC_ACPI(ctx, ac_powered);
+		ASMC_ACPI(ctx);
 	} else if (strcmp(argv[2], "up") == 0 ||
 		   strcmp(argv[2], "u") == 0) {
 		ASMC_UP(ctx);

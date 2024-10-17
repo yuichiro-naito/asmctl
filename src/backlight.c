@@ -80,13 +80,8 @@ get_backlight_video_levels(struct backlight_context *c) {
 		return -1;
 	}
 
-	if (props.nlevels != 0) {
-		for (i = 0; i < props.nlevels; i++)
-			c->bc_levels[i] = props.levels[i];
-	} else {
-		for (i = 0; i < c->bc_nlevels; i++)
-			c->bc_levels[i] = i;
-	}
+	for (i = 0; i < c->bc_nlevels; i++)
+		c->bc_levels[i] = (props.nlevels != 0) ? props.levels[i] : i;
 
 	if (c->bc_economy_level <= 0)
 		c->bc_economy_level = 60; // arbitrary value
@@ -109,15 +104,6 @@ backlight_init(void *context)
 	c->bc_economy_level = -1;
 	c->bc_fullpower_level = -1;
 
-	return 0;
-}
-
-int
-conf_get_int(nvlist_t *conf, const char *key, int *val)
-{
-	if (! nvlist_exists_number(conf, key))
-		return -1;
-	*val = nvlist_get_number(conf, key);
 	return 0;
 }
 

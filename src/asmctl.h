@@ -98,9 +98,11 @@ struct asmc_driver_context {
 #define ASMC_SET_RIGHTS(c, ch, l)  \
 	(c)->driver->cap_set_rights((c)->context, (ch), (l))
 #define ASMC_CLEANUP(c)  (c)->driver->cleanup((c)->context)
-#define ASMC_ACPI(c, v)  (c)->driver->acpi_event((c)->context, (v))
+#define ASMC_ACPI(c)  (c)->driver->acpi_event((c)->context)
 #define ASMC_UP(c)  (c)->driver->up((c)->context)
 #define ASMC_DOWN(c)  (c)->driver->down((c)->context)
+
+int conf_get_int(nvlist_t *, const char *, int *);
 
 extern struct asmc_driver acpi_video_driver;
 extern struct asmc_driver acpi_keyboard_driver;

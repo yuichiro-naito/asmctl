@@ -74,8 +74,8 @@ acpi_keyboard_load_conf(void *context, nvlist_t *conf)
 {
 	struct acpi_keyboard_context *c = context;
 
-	if (nvlist_exists_number(conf, KB_CUR_LEVEL))
-		c->akc_current_level = nvlist_get_number(conf, KB_CUR_LEVEL);
+	if (conf_get_int(conf, KB_CUR_LEVEL, &c->akc_current_level) < 0)
+		return -1;
 
 	return 0;
 }
