@@ -33,6 +33,7 @@
 #include <string.h>
 #include <sys/backlight.h>
 #include <sys/ioctl.h>
+#include <sys/param.h>
 
 #include "asmctl.h"
 
@@ -105,13 +106,13 @@ backlight_init(void *context)
 	if ((c->bc_fd = open(backlight_device, O_RDWR)) < 0)
 		return -1;
 
-	if (get_backlight_video_levels(c) < 0)
-		return -1;
+	c->bc_economy_level = -1;
+	c->bc_fullpower_level = -1;
 
 	return 0;
 }
 
-static int
+int
 conf_get_int(nvlist_t *conf, const char *key, int *val)
 {
 	if (! nvlist_exists_number(conf, key))
@@ -121,33 +122,34 @@ conf_get_int(nvlist_t *conf, const char *key, int *val)
 }
 
 static int
-backlight_load_conf(void *context, nvlist_t *conf)
+backlight_load_conf(void *context, nvlist_t *cf)
 {
 	struct backlight_context *c = context;
 
-	if (conf_get_int(conf, BACKLIGHT_ECO_LEVEL, &c->bc_economy_level) < 0 ||
-	    conf_get_int(conf, BACKLIGHT_FUL_LEVEL, &c->bc_fullpower_level) < 0 ||
-	    conf_get_int(conf, BACKLIGHT_CUR_LEVEL, &c->bc_current_level) < 0)
+	if (conf_get_int(cf, BACKLIGHT_ECO_LEVEL, &c->bc_economy_level) < 0 ||
+	    conf_get_int(cf, BACKLIGHT_FUL_LEVEL, &c->bc_fullpower_level) < 0 ||
+	    conf_get_int(cf, BACKLIGHT_CUR_LEVEL, &c->bc_current_level) < 0)
 		return -1;
 
 	return 0;
 }
 
 static int
-backlight_save_conf(void *context, nvlist_t *conf)
+backlight_save_conf(void *context, nvlist_t *cf)
 {
 	struct backlight_context *c = context;
 
-	nvlist_add_number(conf, BACKLIGHT_ECO_LEVEL, c->bc_economy_level);
-	nvlist_add_number(conf, BACKLIGHT_FUL_LEVEL, c->bc_fullpower_level);
-	nvlist_add_number(conf, BACKLIGHT_CUR_LEVEL, c->bc_current_level);
+	nvlist_add_number(cf, BACKLIGHT_ECO_LEVEL, c->bc_economy_level);
+	nvlist_add_number(cf, BACKLIGHT_FUL_LEVEL, c->bc_fullpower_level);
+	nvlist_add_number(cf, BACKLIGHT_CUR_LEVEL, c->bc_current_level);
 
 	return 0;
 }
 
 #ifdef USE_CAPSICUM
 static int
-backlight_cap_set_rights(void *context, cap_sysctl_limit_t *limits);
+backlight_cap_set_rights(void *context, , cap_channel_t *ch_sysctl,
+			 cap_sysctl_limit_t *limits);
 
 {
 	struct backlight_context *c = context;
@@ -227,9 +229,8 @@ backlight_event(void *context, int event)
 }
 
 static int
-backlight_up(void *context)
+get_video_up_level(struct backlight_context *c)
 {
-	struct backlight_context *c = context;
 	int i, v = c->bc_current_level;
 
 	/* A bug(?) exists on some screens that make it impossible to raise the
@@ -247,23 +248,28 @@ backlight_up(void *context)
 	if (c->bc_levels_are_generated && v < 100)
 		v++;
 
-	for (i = 0; i < c->bc_nlevels; i++) {
-		if (c->bc_levels[i] == v) {
-			v = (i == c->bc_nlevels - 1) ?
-				c->bc_levels[i] : c->bc_levels[i + 1];
-			break;
-		}
-	}
-	if (i == c->bc_nlevels)
-		return 0;
-	return set_backlight_video_level(c, v);
+	for (i = 0; i < c->bc_nlevels; i++)
+		if (c->bc_levels[i] == v)
+			return c->bc_levels[MIN(i + 1, c->bc_nlevels - 1)];
+
+	return -1;
+}
+
+static int
+backlight_up(void *context)
+{
+	struct backlight_context *c = context;
+
+	if (get_backlight_video_levels(c) < 0)
+		return -1;
+
+	return set_backlight_video_level(c, get_video_up_level(c));
 
 }
 
 static int
-backlight_down(void *context)
+get_video_down_level(struct backlight_context *c)
 {
-	struct backlight_context *c = context;
 	int i, v = c->bc_current_level;
 
 	/* A bug(?) exists on some screens that make it impossible to decrease
@@ -303,20 +309,25 @@ backlight_down(void *context)
 	   instead backlight=0.
 	*/
 
-	if (c->bc_levels_are_generated && v == 2) {
+	if (c->bc_levels_are_generated && v == 2)
 		v--;
-	}
 
-	for (i = c->bc_nlevels - 1; i >= 0; i--) {
-		if (c->bc_levels[i] == v) {
-			v = (i == 0) ? c->bc_levels[0] : c->bc_levels[i - 1];
-			break;
-		}
-	}
-	if (i < 0)
+	for (i = c->bc_nlevels - 1; i >= 0; i--)
+		if (c->bc_levels[i] == v)
+			return c->bc_levels[MAX(0, i - 1)];
+
+	return -1;
+}
+
+static int
+backlight_down(void *context)
+{
+	struct backlight_context *c = context;
+
+	if (get_backlight_video_levels(c) < 0)
 		return -1;
 
-	return set_backlight_video_level(c, v);
+	return set_backlight_video_level(c, get_video_down_level(c));
 }
 
 struct asmc_driver backlight_driver =

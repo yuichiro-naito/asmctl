@@ -34,6 +34,9 @@
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
 struct acpi_keyboard_context {
+#ifdef USE_CAPSICUM
+	cap_channel_t *akc_sysctl;
+#endif
 	int akc_ac_powered;
 	int akc_battery_powered;
 	int akc_current_level;
@@ -42,9 +45,8 @@ struct acpi_keyboard_context {
 };
 
 static int
-acpi_keyboard_init(void *context)
+get_keyboard_backlight_level(struct acpi_keyboard_context *c)
 {
-	struct acpi_keyboard_context *c = context;
 	int val;
 	size_t buflen = sizeof(val);
 
@@ -55,6 +57,13 @@ acpi_keyboard_init(void *context)
 	}
 
 	c->akc_current_level = val;
+	return 0;
+}
+
+static int
+acpi_keyboard_init(void *context)
+{
+	struct acpi_keyboard_context *c = context;
 
 	return 0;
 }
@@ -81,10 +90,13 @@ acpi_keyboard_save_conf(void *context, nvlist_t *conf)
 
 #ifdef USE_CAPSICUM
 static int
-acpi_keyboard_cap_set_rights(void *context, cap_sysctl_limit_t *limits);
+acpi_keyboard_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
+			     cap_sysctl_limit_t *limits);
 
 {
 	struct acpi_keyboard_context *c = context;
+
+	c->akc_sysctl = ch_sysctl;
 
 	cap_sysctl_limit_name(limits, KB_CUR_LEVEL, CAP_SYSCTL_RDWR);
 
@@ -125,6 +137,8 @@ acpi_keyboard_event(void *context, int event)
 {
 	struct acpi_keyboard_context *c = context;
 
+	if (get_keyboard_backlight_level(c) < 0)
+		return -1;
 	return set_keyboard_backlight_level(c->akc_current_level);
 }
 
@@ -133,6 +147,9 @@ acpi_keyboard_up(void *context)
 {
 	struct acpi_keyboard_context *c = context;
 	int d;
+
+	if (get_keyboard_backlight_level(c) < 0)
+		return -1;
 
 	d = MIN(c->akc_current_level + 10, 100);
 	if (set_keyboard_backlight_level(d) == 0)
@@ -146,6 +163,9 @@ acpi_keyboard_down(void *context)
 {
 	struct acpi_keyboard_context *c = context;
 	int d;
+
+	if (get_keyboard_backlight_level(c) < 0)
+		return -1;
 
 	d = MAX(c->akc_current_level - 10, 0);
 	if (set_keyboard_backlight_level(d) == 0)

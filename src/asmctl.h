@@ -47,8 +47,8 @@
 	cap_sysctlbyname(ch_sysctl, (A), (B), (C), (D), (E))
 #endif
 
-#define MIN(a,b)     ((a) < (b) ? (a) : (b))
-#define MAX(a,b)     ((a) > (b) ? (a) : (b))
+#define ARRAY_FOREACH(p, a) \
+	for (p = &a[0]; p < &a[nitems(a)]; p++)
 
 enum CATEGORY {
 	NONE = 0,
@@ -64,7 +64,7 @@ struct asmc_driver {
 	int (*load_conf)(void *, nvlist_t *);
 	int (*save_conf)(void *, nvlist_t *);
 #ifdef USE_CAPSICUM
-	int (*cap_set_rights)(void *, cap_sysctl_limit_t *);
+	int (*cap_set_rights)(void *, cap_channel_t *, cap_sysctl_limit_t *);
 #endif
 	int (*cleanup)(void *);
 	int (*acpi_event)(void *, int);
@@ -75,5 +75,6 @@ struct asmc_driver {
 extern struct asmc_driver acpi_video_driver;
 extern struct asmc_driver acpi_keyboard_driver;
 extern struct asmc_driver backlight_driver;
+extern int ac_powered;
 
 #endif
