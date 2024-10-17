@@ -56,6 +56,7 @@ acpi_video_init(void *context)
 
 	c->avc_fullpower_level = -1;
 	c->avc_economy_level = -1;
+	c->avc_current_level = -1;
 
 	return 0;
 }
@@ -160,6 +161,10 @@ get_acpi_video_levels(struct acpi_video_context *c)
 
 	if (c->avc_economy_level < 0)
 		c->avc_economy_level = (int)buf[1];
+
+	if (c->avc_current_level < 0)
+		c->avc_current_level = ac_powered ?
+			c->avc_fullpower_level : c->avc_economy_level;
 
 	/* ignore first two elements for range */
 	n -= 2;
