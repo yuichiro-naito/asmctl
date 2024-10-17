@@ -92,8 +92,7 @@ acpi_video_save_conf(void *context, nvlist_t *cf)
 #ifdef USE_CAPSICUM
 static int
 acpi_video_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
-			  cap_sysctl_limit_t *limits);
-
+			  cap_sysctl_limit_t *limits)
 {
 	struct acpi_video_context *c = context;
 
@@ -297,7 +296,7 @@ struct asmc_driver acpi_video_driver =
 	.load_conf = acpi_video_load_conf,
 	.save_conf = acpi_video_save_conf,
 #ifdef USE_CAPSICUM
-	.cap_set_rights = acpi_video_cap_enter,
+	.cap_set_rights = acpi_video_cap_set_rights,
 #endif
 	.cleanup = acpi_video_cleanup,
 	.acpi_event = acpi_video_event,

@@ -92,8 +92,7 @@ acpi_keyboard_save_conf(void *context, nvlist_t *conf)
 #ifdef USE_CAPSICUM
 static int
 acpi_keyboard_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
-			     cap_sysctl_limit_t *limits);
-
+			     cap_sysctl_limit_t *limits)
 {
 	struct acpi_keyboard_context *c = context;
 
@@ -186,7 +185,7 @@ struct asmc_driver acpi_keyboard_driver =
 	.load_conf = acpi_keyboard_load_conf,
 	.save_conf = acpi_keyboard_save_conf,
 #ifdef USE_CAPSICUM
-	.cap_set_rights = acpi_keyboard_cap_enter,
+	.cap_set_rights = acpi_keyboard_cap_set_rights,
 #endif
 	.cleanup = acpi_keyboard_cleanup,
 	.acpi_event = acpi_keyboard_event,

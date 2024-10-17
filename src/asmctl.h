@@ -27,6 +27,10 @@
 #ifndef _ASMCTL_H_
 #define _ASMCTL_H_
 
+#ifdef HAVE_CONFIG_H
+#include "config.h"
+#endif
+
 #if (defined(HAVE_SYS_CAPSICUM_H) && (HAVE_LIBCASPER_H))
 #define WITH_CASPER 1 // WITH_CASPER is needed since 12.0R
 #define USE_CAPSICUM 1
@@ -35,6 +39,7 @@
 #include <casper/cap_sysctl.h>
 #ifdef HAVE_CAPSICUM_HELPERS_H
 #include "capsicum_helpers.h"
+extern cap_channel_t *ch_sysctl;
 #else
 #include <nl_types.h>
 #endif

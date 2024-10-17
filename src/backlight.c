@@ -148,9 +148,8 @@ backlight_save_conf(void *context, nvlist_t *cf)
 
 #ifdef USE_CAPSICUM
 static int
-backlight_cap_set_rights(void *context, , cap_channel_t *ch_sysctl,
-			 cap_sysctl_limit_t *limits);
-
+backlight_cap_set_rights(void *context, cap_channel_t *ch_sysctl,
+			 cap_sysctl_limit_t *limits)
 {
 	struct backlight_context *c = context;
 	cap_rights_t bc_fd_rights;
@@ -339,7 +338,7 @@ struct asmc_driver backlight_driver =
 	.load_conf = backlight_load_conf,
 	.save_conf = backlight_save_conf,
 #ifdef USE_CAPSICUM
-	.cap_set_rights = backlight_cap_enter,
+	.cap_set_rights = backlight_cap_set_rights,
 #endif
 	.cleanup = backlight_cleanup,
 	.acpi_event = backlight_event,

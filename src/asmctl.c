@@ -49,24 +49,6 @@
 
 #include <sys/backlight.h>
 
-#ifdef HAVE_CONFIG_H
-#include "config.h"
-#endif
-
-#if (defined(HAVE_SYS_CAPSICUM_H) && (HAVE_LIBCASPER_H))
-#define WITH_CASPER 1 // WITH_CASPER is needed since 12.0R
-#define USE_CAPSICUM 1
-#include <libcasper.h>
-#include <sys/capsicum.h>
-#include <sys/nv.h>
-#include <casper/cap_sysctl.h>
-#ifdef HAVE_CAPSICUM_HELPERS_H
-#include "capsicum_helpers.h"
-#else
-#include <nl_types.h>
-#endif
-#endif
-
 #include "asmctl.h"
 
 #define AC_POWER "hw.acpi.acline"
