@@ -82,7 +82,7 @@ struct asmc_driver {
 	int (*cap_set_rights)(void *, cap_channel_t *, cap_sysctl_limit_t *);
 #endif
 	int (*cleanup)(void *);
-	int (*acpi_event)(void *, int);
+	int (*acpi_event)(void *);
 	int (*up)(void *);
 	int (*down)(void *);
 };

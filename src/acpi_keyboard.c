@@ -133,7 +133,7 @@ set_keyboard_backlight_level(int val)
 }
 
 static int
-acpi_keyboard_event(void *context, int event)
+acpi_keyboard_event(void *context)
 {
 	struct acpi_keyboard_context *c = context;
 

@@ -219,12 +219,12 @@ set_backlight_video_level(struct backlight_context *c, int val) {
 }
 
 static int
-backlight_event(void *context, int event)
+backlight_event(void *context)
 {
 	struct backlight_context *c = context;
-	int d = ac_powered ? c->bc_fullpower_level : c->bc_economy_level;
 
-	return set_backlight_video_level(c, d);
+	return set_backlight_video_level(context,
+		 ac_powered ? c->bc_fullpower_level : c->bc_economy_level);
 }
 
 static int

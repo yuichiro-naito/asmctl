@@ -140,8 +140,7 @@ get_acpi_video_levels(struct acpi_video_context *c)
 		return -1;
 	}
 
-	buf = (int *)malloc(buflen);
-	if (buf == NULL) {
+	if ((buf = malloc(buflen)) == NULL) {
 		fprintf(stderr, "failed to allocate %lu bytes memory\n",
 			buflen);
 		return -1;
@@ -172,8 +171,7 @@ get_acpi_video_levels(struct acpi_video_context *c)
 
 	/* ignore first two elements for range */
 	n -= 2;
-	v = (int *)malloc(n * sizeof(int));
-	if (v == NULL) {
+	if ((v = malloc(n * sizeof(int))) == NULL) {
 		fprintf(stderr, "failed to allocate %zu bytes memory\n",
 			n * sizeof(int));
 		free(buf);
@@ -234,7 +232,7 @@ static int
 get_video_up_level(struct acpi_video_context *c)
 {
 	int v = c->avc_current_level;
-	int i;
+	int i, *p;
 
 	for (i = 0; i < c->avc_nlevels; i++)
 		if (c->avc_levels[i] == v)
@@ -257,7 +255,7 @@ get_video_down_level(struct acpi_video_context *c)
 }
 
 static int
-acpi_video_event(void *context, int event)
+acpi_video_event(void *context)
 {
 	struct acpi_video_context *c = context;
 
