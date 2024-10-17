@@ -223,7 +223,7 @@ backlight_event(void *context)
 {
 	struct backlight_context *c = context;
 
-	return set_backlight_video_level(context,
+	return set_backlight_video_level(c,
 		 ac_powered ? c->bc_fullpower_level : c->bc_economy_level);
 }
 
