@@ -35,6 +35,11 @@
  *  hw.asmc.0.light.control	(asmc(4))
  *  hw.acpi.acline		(acpi(4))
  *
+ * If a backlight(9) device is available, the following device file is
+ * used instead of 'hw.acpi.video.lcd0.*'.
+ *
+ *  /dev/backlight/backlight0
+ *
  */
 
 #include <errno.h>
@@ -62,21 +67,19 @@ static char *conf_filename = "/var/lib/asmctl.conf";
 /* file descriptor for the state file */
 static int conf_fd = -1;
 
-/*
-  Available drivers.
- */
+/* available drivers. */
 static struct asmc_driver *asmc_drivers[] = {
 	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
 };
 
-/*
-  Driver context for video & keyboard.
- */
+/* driver context for video & keyboard. */
 static struct asmc_driver_context video_ctx, keyboard_ctx;
 
+
 /*
-  Must be sorted by the name.
- */
+  available subcommands.
+  MUST be sorted by name.
+*/
 static struct driver_type {
 	char *name;
 	struct asmc_driver_context *context;
@@ -89,6 +92,10 @@ static struct driver_type {
 	{"video", &video_ctx},
 };
 
+/*
+  lookup up an asmc driver in the 'cat' category and returns the first
+  match and successfully initialized driver in 'asmc_drivers'.
+ */
 static int
 lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
 {
@@ -97,25 +104,26 @@ lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
 
 	ARRAY_FOREACH(p, asmc_drivers) {
 		ad = *p;
-		if (ad->category == cat) {
-			if ((c = calloc(1, ad->ctx_size)) == NULL) {
-				fprintf(stderr,
-					"failed to allocate %zu bytes memory\n",
-					ad->ctx_size);
-				return -1;
-			}
-			if (ad->init(c) < 0) {
-				free(c);
-				continue;
-			}
-			*drv = ad;
-			*ctx = c;
-			return 0;
+		if (ad->category != cat)
+			continue;
+		if ((c = calloc(1, ad->ctx_size)) == NULL) {
+			fprintf(stderr,
+				"failed to allocate %zu bytes memory\n",
+				ad->ctx_size);
+			return -1;
 		}
+		if (ad->init(c) < 0) {
+			free(c);
+			continue;
+		}
+		*drv = ad;
+		*ctx = c;
+		return 0;
 	}
 	return -1;
 }
 
+/* initialize video & keyboard backlight drivers. */
 static int
 init_driver_context()
 {
@@ -188,6 +196,7 @@ err:
 	return -1;
 }
 
+/* utility: check and get the number from the key. */
 int
 conf_get_int(nvlist_t *conf, const char *key, int *val)
 {
@@ -317,8 +326,11 @@ init_capsicum(struct asmc_driver_context *c)
 		return -1;
 	}
 
+	/* limit sysctl names */
 	limits = cap_sysctl_limit_init(ch_sysctl);
 	cap_sysctl_limit_name(limits, AC_POWER, CAP_SYSCTL_READ);
+
+	/* set rights for the drivers */
 	ASMC_SET_RIGHTS(&keyboard_ctx, limits);
 	ASMC_SET_RIGHTS(&video_ctx, limits);
 
@@ -384,6 +396,7 @@ main(int argc, char *argv[])
 		goto err;
 	}
 
+	/* lookup the driver context */
 	type = bsearch(argv[1], type_table, nitems(type_table),
 		      sizeof(type_table[0]), type_compare);
 	if (type == NULL) {
@@ -401,15 +414,14 @@ main(int argc, char *argv[])
 	if (get_ac_powered() < 0 || get_saved_levels() < 0)
 		goto err;
 
-	if (strcmp(argv[2], "acpi") == 0 || strcmp(argv[2], "a") == 0) {
+	if (strcmp(argv[2], "acpi") == 0 || strcmp(argv[2], "a") == 0)
 		ASMC_ACPI(ctx);
-	} else if (strcmp(argv[2], "up") == 0 ||
-		   strcmp(argv[2], "u") == 0) {
+	else if (strcmp(argv[2], "up") == 0 ||
+		   strcmp(argv[2], "u") == 0)
 		ASMC_UP(ctx);
-	} else if (strcmp(argv[2], "down") == 0 ||
-		   strcmp(argv[2], "d") == 0) {
+	else if (strcmp(argv[2], "down") == 0 ||
+		   strcmp(argv[2], "d") == 0)
 		ASMC_DOWN(ctx);
-	}
 
 	store_conf_file();
 
