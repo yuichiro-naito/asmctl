@@ -67,7 +67,10 @@ static int conf_fd = -1;
 
 /* available drivers. */
 static struct asmc_driver *asmc_drivers[] = {
-	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
+#ifdef HAVE_SYS_BACKLIGHT_H
+    &backlight_driver,
+#endif
+    &acpi_video_driver, &acpi_keyboard_driver
 };
 
 /* driver context for video & keyboard. */

@@ -2,8 +2,8 @@
 # Process this file with autoconf to produce a configure script.
 
 AC_PREREQ([2.69])
-AC_INIT([asmctl], [1.0], [naito.yuichiro@gmail.com])
-AC_CONFIG_SRCDIR([src/asmctl.c])
+AC_INIT([asmctl], [2.1], [naito.yuichiro@gmail.com])
+AC_CONFIG_SRCDIR([config.h.in])
 AC_CONFIG_HEADERS([config.h])
 
 AC_PREFIX_DEFAULT(/usr/local)
@@ -22,7 +22,9 @@ AC_CHECK_LIB(cap_sysctl, cap_sysctlbyname)
 # Checks for header files.
 AC_CHECK_HEADERS([unistd.h stdlib.h string.h fcntl.h nl_types.h])
 AC_CHECK_HEADERS([sys/nv.h sys/capsicum.h libcasper.h capsicum_helpers.h])
-AC_CHECK_HEADERS([sys/ioctl.h])
+AC_CHECK_HEADERS([sys/backlight.h sys/ioctl.h])
+AC_CHECK_HEADER(sys/backlight.h, blsrc=src/backlight.c, blsrc=)
+AC_SUBST([backlight], $blsrc)
 
 # Check for functions.
 AC_CHECK_FUNCS([cap_sysctl_limit_name])

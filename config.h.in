@@ -62,6 +62,9 @@
 /* Define to 1 if you have the 'strtol' function. */
 #undef HAVE_STRTOL
 
+/* Define to 1 if you have the <sys/backlight.h> header file. */
+#undef HAVE_SYS_BACKLIGHT_H
+
 /* Define to 1 if you have the <sys/capsicum.h> header file. */
 #undef HAVE_SYS_CAPSICUM_H
 
