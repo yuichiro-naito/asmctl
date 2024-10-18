@@ -52,8 +52,6 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#include <sys/backlight.h>
-
 #include "asmctl.h"
 
 #define AC_POWER "hw.acpi.acline"
