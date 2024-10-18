@@ -371,7 +371,7 @@ main(int argc, char *argv[])
 	struct driver_type *type;
 	struct asmc_driver_context *ctx;
 
-	if (argc <= 2) {
+	if (argc < 3) {
 		usage(argv[0]);
 		return 1;
 	}
