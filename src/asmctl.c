@@ -60,19 +60,19 @@ int ac_powered = 0;
 static char *conf_filename = "/var/lib/asmctl.conf";
 
 /* file descriptor for the state file */
-int conf_fd = -1;
+static int conf_fd = -1;
 
 /*
   Available drivers.
  */
-struct asmc_driver *asmc_drivers[] = {
+static struct asmc_driver *asmc_drivers[] = {
 	&backlight_driver, &acpi_video_driver, &acpi_keyboard_driver
 };
 
 /*
   Driver context for video & keyboard.
  */
-struct asmc_driver_context video_ctx, keyboard_ctx;
+static struct asmc_driver_context video_ctx, keyboard_ctx;
 
 /*
   Must be sorted by the name.
@@ -116,7 +116,7 @@ lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
 	return -1;
 }
 
-int
+static int
 init_driver_context()
 {
 	if (lookup_driver(KEYBOARD, &keyboard_ctx.driver,
@@ -134,7 +134,7 @@ init_driver_context()
    Store backlight levels to file.
    Write in sysctl.conf(5) format to restore by sysctl(1)
  */
-int
+static int
 store_conf_file()
 {
 	FILE *fp;
@@ -197,7 +197,7 @@ conf_get_int(nvlist_t *conf, const char *key, int *val)
 	return 0;
 }
 
-int
+static int
 get_saved_levels()
 {
 	FILE *fp;
@@ -253,7 +253,7 @@ get_saved_levels()
 	return 0;
 }
 
-int
+static int
 get_ac_powered()
 {
 	char buf[128];
@@ -274,7 +274,7 @@ get_ac_powered()
 /* Global channel to the sysctl caspter.*/
 cap_channel_t *ch_sysctl;
 
-int
+static int
 init_capsicum(struct asmc_driver_context *c)
 {
 	cap_sysctl_limit_t *limits;
@@ -340,14 +340,14 @@ init_capsicum(struct asmc_driver_context *c)
 }
 #endif
 
-void
+static void
 usage(const char *prog)
 {
 	printf("usage: %s [video|key] [up|down]\n", prog);
 	printf("\nChange video or keyboard backlight more or less bright.\n");
 }
 
-void
+static void
 cleanup()
 {
 	ASMC_CLEANUP(&keyboard_ctx);
