@@ -75,7 +75,6 @@ static struct asmc_driver *asmc_drivers[] = {
 /* driver context for video & keyboard. */
 static struct asmc_driver_context video_ctx, keyboard_ctx;
 
-
 /*
   available subcommands.
   MUST be sorted by name.
@@ -132,6 +131,7 @@ init_driver_context()
 		return -1;
 	if (lookup_driver(VIDEO, &video_ctx.driver, &video_ctx.context) < 0) {
 		ASMC_CLEANUP(&keyboard_ctx);
+		free(keyboard_ctx.context);
 		return -1;
 	}
 	return 0;
@@ -363,7 +363,9 @@ static void
 cleanup()
 {
 	ASMC_CLEANUP(&keyboard_ctx);
+	free(keyboard_ctx.context);
 	ASMC_CLEANUP(&video_ctx);
+	free(video_ctx.context);
 	if (conf_fd != -1)
 		close(conf_fd);
 }
