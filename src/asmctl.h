@@ -103,6 +103,7 @@ struct asmc_driver_context {
 #define ASMC_DOWN(c)  (c)->driver->down((c)->context)
 
 int conf_get_int(nvlist_t *, const char *, int *);
+int choose_acpi_level(int, int);
 
 extern struct asmc_driver acpi_video_driver;
 extern struct asmc_driver acpi_keyboard_driver;

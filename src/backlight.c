@@ -210,9 +210,10 @@ static int
 backlight_event(void *context)
 {
 	struct backlight_context *c = context;
+	int alv = choose_acpi_level(c->bc_economy_level,
+				    c->bc_fullpower_level);
 
-	return set_backlight_video_level(c,
-		 ac_powered ? c->bc_fullpower_level : c->bc_economy_level);
+	return set_backlight_video_level(c, alv);
 }
 
 static int

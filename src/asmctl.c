@@ -206,6 +206,12 @@ conf_get_int(nvlist_t *conf, const char *key, int *val)
 	return 0;
 }
 
+int
+choose_acpi_level(int eco, int full)
+{
+	return (ac_powered) ? (MAX(eco, full)) : (MIN(eco, full));
+}
+
 static int
 get_saved_levels()
 {

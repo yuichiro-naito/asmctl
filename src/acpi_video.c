@@ -255,11 +255,10 @@ static int
 acpi_video_event(void *context)
 {
 	struct acpi_video_context *c = context;
+	int alv = choose_acpi_level(c->avc_economy_level,
+				    c->avc_fullpower_level);
 
-	if (get_acpi_video_levels(c) < 0)
-		return -1;
-	return set_acpi_video_level(c,
-		    ac_powered ? c->avc_fullpower_level : c->avc_economy_level);
+	return set_acpi_video_level(c, alv);
 }
 
 static int
