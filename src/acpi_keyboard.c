@@ -35,8 +35,6 @@
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
 
 struct acpi_keyboard_context {
-	int akc_ac_powered;
-	int akc_battery_powered;
 	int akc_current_level;
 	int akc_nvalues;
 	int *akc_values;
