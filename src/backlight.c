@@ -297,7 +297,7 @@ get_video_down_level(struct backlight_context *c)
 	   instead backlight=0.
 	*/
 
-	if (c->bc_levels_are_generated && v == 2)
+	if (c->bc_levels_are_generated && v >= 2)
 		v--;
 
 	for (i = c->bc_nlevels - 1; i >= 0; i--)
