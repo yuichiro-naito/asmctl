@@ -104,7 +104,8 @@ static int
 acpi_video_cleanup(void *context)
 {
 	struct acpi_video_context *c = context;
-	// nothing to do
+
+	free(c->avc_levels);
 	return 0;
 }
 
