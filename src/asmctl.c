@@ -425,11 +425,9 @@ main(int argc, char *argv[])
 
 	if (strcmp(argv[2], "acpi") == 0 || strcmp(argv[2], "a") == 0)
 		ASMC_ACPI(ctx);
-	else if (strcmp(argv[2], "up") == 0 ||
-		   strcmp(argv[2], "u") == 0)
+	else if (strcmp(argv[2], "up") == 0 || strcmp(argv[2], "u") == 0)
 		ASMC_UP(ctx);
-	else if (strcmp(argv[2], "down") == 0 ||
-		   strcmp(argv[2], "d") == 0)
+	else if (strcmp(argv[2], "down") == 0 || strcmp(argv[2], "d") == 0)
 		ASMC_DOWN(ctx);
 
 	store_conf_file();
