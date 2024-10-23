@@ -93,7 +93,7 @@ static struct driver_type {
 };
 
 /*
-  lookup up an asmc driver in the 'cat' category and returns the first
+  lookup up an asmc driver of the category. returns the first
   match and successfully initialized driver in 'asmc_drivers'.
  */
 static int
@@ -123,6 +123,13 @@ lookup_driver(enum CATEGORY cat, struct asmc_driver **drv, void **ctx)
 	return -1;
 }
 
+/* clean up the driver context */
+static void cleanup_driver_context(struct asmc_driver_context *c)
+{
+	ASMC_CLEANUP(c);
+	free(c->context);
+}
+
 /* initialize video & keyboard backlight drivers. */
 static int
 init_driver_context()
@@ -131,13 +138,11 @@ init_driver_context()
 			  &keyboard_ctx.context) < 0)
 		return -1;
 	if (lookup_driver(VIDEO, &video_ctx.driver, &video_ctx.context) < 0) {
-		ASMC_CLEANUP(&keyboard_ctx);
-		free(keyboard_ctx.context);
+		cleanup_driver_context(&keyboard_ctx);
 		return -1;
 	}
 	return 0;
 }
-
 
 /**
    Store backlight levels to file.
@@ -369,10 +374,8 @@ usage(const char *prog)
 static void
 cleanup()
 {
-	ASMC_CLEANUP(&keyboard_ctx);
-	free(keyboard_ctx.context);
-	ASMC_CLEANUP(&video_ctx);
-	free(video_ctx.context);
+	cleanup_driver_context(&keyboard_ctx);
+	cleanup_driver_context(&video_ctx);
 	if (conf_fd != -1)
 		close(conf_fd);
 }
@@ -397,8 +400,10 @@ main(int argc, char *argv[])
 		return 1;
 	}
 
-	if (init_driver_context() < 0)
+	if (init_driver_context() < 0) {
+		fprintf(stderr, "no driver is found\n");
 		return 1;
+	}
 
 	if ((conf_fd = open(conf_filename, O_CREAT | O_RDWR, 0600)) < 0) {
 		fprintf(stderr, "can not open %s\n", conf_filename);
@@ -429,7 +434,10 @@ main(int argc, char *argv[])
 		ASMC_UP(ctx);
 	else if (strcmp(argv[2], "down") == 0 || strcmp(argv[2], "d") == 0)
 		ASMC_DOWN(ctx);
-
+	else {
+		usage(argv[0]);
+		goto err;
+	}
 	store_conf_file();
 
 	cleanup();
