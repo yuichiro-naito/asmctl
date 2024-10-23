@@ -33,8 +33,16 @@
 #include "asmctl.h"
 
 #define KB_CUR_LEVEL "dev.asmc.0.light.control"
+/*
+ * 'economy' & 'fullpower' are not actual sysctl name.
+ * They are used for the configuration file.
+ */
+#define KB_ECO_LEVEL "dev.asmc.0.light.economy"
+#define KB_FUL_LEVEL "dev.asmc.0.light.fullpower"
 
 struct acpi_keyboard_context {
+	int akc_economy_level;
+	int akc_fullpower_level;
 	int akc_current_level;
 	int akc_nvalues;
 	int *akc_values;
@@ -52,6 +60,12 @@ get_keyboard_backlight_level(struct acpi_keyboard_context *c)
 		return -1;
 	}
 
+        if (c->akc_economy_level < 0)
+                c->akc_economy_level = val;
+
+        if (c->akc_fullpower_level < 0)
+                c->akc_fullpower_level = val;
+
 	c->akc_current_level = val;
 	return 0;
 }
@@ -60,7 +74,10 @@ static int
 acpi_keyboard_init(void *context)
 {
 	struct acpi_keyboard_context *c = context;
-	// nothing to do
+
+	c->akc_economy_level = -1;
+	c->akc_fullpower_level = -1;
+
 	return 0;
 }
 
@@ -69,7 +86,9 @@ acpi_keyboard_load_conf(void *context, nvlist_t *conf)
 {
 	struct acpi_keyboard_context *c = context;
 
-	if (conf_get_int(conf, KB_CUR_LEVEL, &c->akc_current_level) < 0)
+        if (conf_get_int(conf, KB_CUR_LEVEL, &c->akc_current_level) < 0 ||
+            conf_get_int(conf, KB_ECO_LEVEL, &c->akc_economy_level) < 0 ||
+	    conf_get_int(conf, KB_FUL_LEVEL, &c->akc_fullpower_level) < 0)
 		return -1;
 
 	return 0;
@@ -81,6 +100,8 @@ acpi_keyboard_save_conf(void *context, nvlist_t *conf)
 	struct acpi_keyboard_context *c = context;
 
 	nvlist_add_number(conf, KB_CUR_LEVEL, c->akc_current_level);
+	nvlist_add_number(conf, KB_ECO_LEVEL, c->akc_economy_level);
+	nvlist_add_number(conf, KB_FUL_LEVEL, c->akc_fullpower_level);
 	return 0;
 }
 
@@ -105,10 +126,13 @@ acpi_keyboard_cleanup(void *context)
 }
 
 static int
-set_keyboard_backlight_level(int val)
+set_keyboard_backlight_level(struct acpi_keyboard_context *c, int val)
 {
 	int rc;
 	char buf[sizeof(int)];
+
+	if (val < 0 || val > 100)
+		return -1;
 
 	memcpy(buf, &val, sizeof(int));
 
@@ -121,6 +145,13 @@ set_keyboard_backlight_level(int val)
 
 	printf("set keyboard backlight brightness: %d\n", val);
 
+	c->akc_current_level = val;
+
+	if (ac_powered)
+		c->akc_fullpower_level = val;
+	else
+		c->akc_economy_level = val;
+
 	return 0;
 }
 
@@ -128,10 +159,10 @@ static int
 acpi_keyboard_event(void *context)
 {
 	struct acpi_keyboard_context *c = context;
+	int alv = choose_acpi_level(c->akc_economy_level,
+				    c->akc_fullpower_level);
 
-	if (get_keyboard_backlight_level(c) < 0)
-		return -1;
-	return set_keyboard_backlight_level(c->akc_current_level);
+	return set_keyboard_backlight_level(c, alv);
 }
 
 static int
@@ -144,11 +175,7 @@ acpi_keyboard_up(void *context)
 		return -1;
 
 	d = MIN(c->akc_current_level + 10, 100);
-	if (set_keyboard_backlight_level(d) < 0)
-		return -1;
-	c->akc_current_level = d;
-
-	return 0;
+	return set_keyboard_backlight_level(c, d);
 }
 
 static int
@@ -161,11 +188,7 @@ acpi_keyboard_down(void *context)
 		return -1;
 
 	d = MAX(c->akc_current_level - 10, 0);
-	if (set_keyboard_backlight_level(d) < 0)
-		return -1;
-	c->akc_current_level = d;
-
-	return 0;
+	return set_keyboard_backlight_level(c, d);
 }
 
 struct asmc_driver acpi_keyboard_driver =
