@@ -44,8 +44,6 @@ struct acpi_keyboard_context {
 	int akc_economy_level;
 	int akc_fullpower_level;
 	int akc_current_level;
-	int akc_nvalues;
-	int *akc_values;
 };
 
 static int
