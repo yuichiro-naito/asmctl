@@ -212,6 +212,7 @@ conf_get_int(nvlist_t *conf, const char *key, int *val)
 	return 0;
 }
 
+/* utility: choose the brightness level on an acpi event */
 int
 choose_acpi_level(int eco, int full)
 {
