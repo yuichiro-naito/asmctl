@@ -15,7 +15,7 @@ INCS = -I.
 
 CONF = devd/asmctl.conf
 MAN  = src/asmctl.1
-SRCS = src/asmctl.c
+SRCS = src/asmctl.c src/acpi_video.c src/acpi_keyboard.c @backlight@
 OBJS = $(SRCS:.c=.o)
 PROG = asmctl
 VAR  = /var
