@@ -135,7 +135,7 @@ get_acpi_video_levels(struct acpi_video_context *c)
 	}
 
 	if ((buf = malloc(buflen)) == NULL) {
-		fprintf(stderr, "failed to allocate %lu bytes memory\n",
+		fprintf(stderr, "failed to allocate %zu bytes memory\n",
 			buflen);
 		return -1;
 	}
